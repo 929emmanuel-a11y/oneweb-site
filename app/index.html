@@ -63,6 +63,8 @@ textarea{min-height:90px;resize:vertical}
 .login{max-width:380px;margin:12vh auto;padding:0 16px}
 .err{color:var(--bad);font-size:13px;min-height:18px}
 .hide{display:none!important}
+.bubble{background:#2a2417;color:#f3e7cf;padding:14px 16px;border-radius:18px;border-bottom-left-radius:4px;white-space:pre-wrap;font-size:15px}
+.btn:disabled{opacity:.4;cursor:not-allowed}
 .mtabs{display:none}
 @media (max-width:900px){
  .app{grid-template-columns:1fr}aside{display:none}
@@ -80,7 +82,7 @@ textarea{min-height:90px;resize:vertical}
   <div class="brand">One Web<span>.</span></div>
   <div class="card">
     <h2>Studio sign in</h2>
-    <p class="sub" style="margin-bottom:18px">Use your HQ Dashboard login from n8n.</p>
+    <p class="sub" style="margin-bottom:18px">Username <b>emmanuel</b> and the password you set in n8n.</p>
     <div class="field"><label>Username</label><input type="text" id="lu" autocomplete="username"></div>
     <div class="field"><label>Password</label><input type="password" id="lp" autocomplete="current-password"></div>
     <div class="toggle" style="border:0;padding-top:0"><span>Remember on this device</span><input type="checkbox" id="lr"></div>
@@ -104,7 +106,7 @@ textarea{min-height:90px;resize:vertical}
 <script>
 const API = 'https://n8n-production-9be3db1c.up.railway.app/webhook/oneweb-api';
 const CHAT = 'https://n8n-production-9be3db1c.up.railway.app/webhook/oneweb-test-chat-b3a761a6';
-const TABS = [['overview','Overview'],['convos','Conversations'],['closer','AI Closer'],['pricing','Pricing'],['voice','Voice & Dialer'],['test','Test Chat']];
+const TABS = [['overview','Overview'],['convos','Conversations'],['closer','AI Closer'],['pricing','Pricing'],['reviews','Reviews'],['voice','Phone & Dialer'],['test','Test Chat']];
 let AUTH = null, STATE = null, TAB = 'overview', DRAFT = null, SEL = null, DIRTY = false;
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -131,12 +133,12 @@ function nav(){
   $('#nav').innerHTML = h; $('#mnav').innerHTML = h;
   document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { TAB = b.dataset.t; render(); });
 }
-function render(){ nav(); const f = { overview, convos, closer, pricing, voice, test }[TAB]; $('#main').innerHTML = f(); bind(); }
+function render(){ nav(); const f = { overview, convos, closer, pricing, reviews, voice, test }[TAB]; $('#main').innerHTML = f(); bind(); }
 
 function overview(){
   const p = STATE.pipeline, s = STATE.settings;
   const rows = [
-    ['Leads scraped', null], ['Landlines found', null], ['Voicemails dropped', null],
+    ['Leads scraped', (STATE.leads||{}).scraped || null], ['Landlines found', (STATE.leads||{}).landlines || null], ['Voicemails dropped', null],
     ['Replied', p.replied], ['Preview requested', p.preview_requested], ['Ready to pay', p.ready_to_pay], ['Won', p.won],
   ];
   const max = Math.max(1, ...rows.map(r => r[1] || 0));
@@ -145,13 +147,14 @@ function overview(){
     <div class="card kpi"><span>Replies</span><b>${p.replied}</b></div>
     <div class="card kpi"><span>Previews</span><b>${p.preview_requested}</b></div>
     <div class="card kpi"><span>Needs you</span><b style="color:${p.needs_human?'var(--warn)':'inherit'}">${p.needs_human}</b></div>
-    <div class="card kpi"><span>Daily goal</span><b>${(s.dialer||{}).dailyTarget ?? 500}</b></div>
+    <div class="card kpi"><span>Reviews</span><b>${(STATE.reviews||[]).length}</b></div>
+    <div class="card kpi hide"><span>Daily goal</span><b>${(s.dialer||{}).dailyTarget ?? 500}</b></div>
   </div>
   <div class="card"><h2>Pipeline</h2><div class="funnel">
     ${rows.map(([l,v]) => v === null
       ? `<div class="frow dim"><span>${l}</span><div class="bar"></div><span class="soon">soon</span></div>`
       : `<div class="frow"><span>${l}</span><div class="bar"><div style="width:${Math.round((v/max)*100)}%"></div></div><b>${v}</b></div>`).join('')}
-  </div><p class="note">Scraped / landline / voicemail counts connect when the voicemail dialer is built.</p></div>
+  </div><p class="note">${(STATE.leads||{}).scraped ? `Today: ${STATE.leads.today.scraped} scraped, ${STATE.leads.today.landlines} landlines. ` : ''}Voicemail counts connect when the dialer is built.</p></div>
   <div class="grid g2">
     <div class="card"><h2>Closed out</h2><div class="funnel">
       <div class="frow"><span>Lost</span><div class="bar"><div style="width:${Math.min(100,p.lost*10)}%;background:var(--bad)"></div></div><b>${p.lost}</b></div>
@@ -160,6 +163,7 @@ function overview(){
     <div class="card"><h2>Live status</h2>
       <div class="toggle" style="border:0"><span>Text closer</span><span class="pill ready_to_pay">On</span></div>
       <div class="toggle"><span>Sending numbers</span><span class="pill ${(s.ourNumbers||[]).length?'ready_to_pay':'needs_human'}">${(s.ourNumbers||[]).length || 'None yet'}</span></div>
+      <div class="toggle"><span>Lead cleaner</span><span class="pill ${(STATE.leads||{}).scraped?'ready_to_pay':''}">${(STATE.leads||{}).scraped?'Reporting':'No runs yet'}</span></div>
       <div class="toggle"><span>Voicemail dialer</span><span class="pill">Not built</span></div>
       <div class="toggle"><span>Preview builder</span><span class="pill">Not built</span></div>
     </div>
@@ -224,6 +228,10 @@ function pricing(){
     <div class="card"><h2>Hosting</h2>
       <div class="field"><label>Hosted & cared for $ / month</label><input type="number" data-k="hostingMonthly" data-num value="${s.hostingMonthly}"></div>
       <div class="toggle"><span>Offer 1st month free at the lowest step</span><input type="checkbox" data-k="freeHostingMonthAtFloor" ${s.freeHostingMonthAtFloor?'checked':''}></div>
+      <h2 style="margin-top:22px">Review offer</h2>
+      <div class="toggle" style="border:0"><span>Offer a price for an honest review of the preview</span><input type="checkbox" data-k="reviewOffer" ${s.reviewOffer?'checked':''}></div>
+      <div class="field"><label>Price after any honest review $</label><input type="number" data-k="reviewPrice" data-num value="${s.reviewPrice}"></div>
+      <p class="note">Applies whatever they say, good or bad. The AI never asks for a positive review.</p>
       <p class="note" style="margin-top:14px">Ladder preview: <b id="ladder"></b></p>
     </div>
   </div>${savebar()}`;
@@ -231,7 +239,7 @@ function pricing(){
 
 function voice(){
   const s = DRAFT, v = s.voice || { provider:'telnyx', voiceId:'', speed:1, notes:'' }, d = s.dialer || { dailyTarget:500, targetType:'dials', enabled:false };
-  return `<h1>Voice & Dialer</h1><p class="sub">Settings the voicemail dialer will use once it's built.</p>
+  return `<h1>Phone & Dialer</h1><p class="sub">Settings the voicemail dialer will use once it's built.</p>
   <div class="grid g2">
     <div class="card"><h2>Voice</h2>
       <div class="field"><label>Provider</label><select data-v="provider">${[['telnyx','Telnyx (default)'],['elevenlabs','ElevenLabs'],['retell','Retell']].map(([k,l]) => `<option value="${k}" ${v.provider===k?'selected':''}>${l}</option>`).join('')}</select></div>
@@ -239,6 +247,10 @@ function voice(){
       <div class="field"><label>Speed</label><div class="range"><small>0.5x</small><input type="range" min="0.5" max="2" step="0.05" data-v="speed" data-num value="${v.speed}"><small>2x</small></div></div>
       <div class="field"><label>Voice notes</label><textarea data-v="notes" placeholder="e.g. warm, mid-pace, NYC accent">${esc(v.notes)}</textarea></div>
       <div class="field"><label>Voicemail clip</label><input type="file" accept="audio/*" disabled><p class="note">Upload switches on with the dialer build.</p></div>
+    </div>
+    <div class="card"><h2>Sending numbers</h2>
+      <div class="field"><label>Your Telnyx numbers (one per line)</label><textarea data-k="ourNumbers" data-lines placeholder="+12145550123">${esc((s.ourNumbers||[]).join('\n'))}</textarea>
+      <p class="note">The closer only replies on these numbers. Leave empty until they're bought.</p></div>
     </div>
     <div class="card"><h2>Daily target</h2>
       <div class="field"><label>Target per day</label><input type="number" data-d="dailyTarget" data-num value="${d.dailyTarget}"></div>
@@ -268,6 +280,25 @@ function test(){
   </div>`;
 }
 
+function reviews(){
+  const list = STATE.reviews || [];
+  const ready = list.filter(r => r.status === 'approved' && r.consent === true && !r.test).length;
+  const card = r => `<div class="card review">
+      <div class="bubble">${esc(r.text)}</div>
+      <p class="meta"><b>${esc(r.name || r.phone)}</b>${r.city ? ' · '+esc(r.city) : ''} · ${ago(r.at)} ${r.test ? '<span class="pill">test</span>' : ''}</p>
+      <p class="meta">Permission to feature: ${r.consent === true ? '<span class="pill ready_to_pay">yes</span>' : r.consent === false ? '<span class="pill lost">no</span>' : '<span class="pill">not asked yet</span>'} · Status: <span class="pill ${r.status==='approved'?'won':r.status==='rejected'?'lost':''}">${r.status}</span></p>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn btn-gold btn-sm" data-rv="${r.id}" data-st="approved" ${r.consent !== true ? 'disabled title="Needs their permission first"' : ''}>Approve</button>
+        <button class="btn btn-line btn-sm" data-rv="${r.id}" data-st="rejected">Hide</button>
+        ${r.status !== 'pending' ? `<button class="btn btn-line btn-sm" data-rv="${r.id}" data-st="pending">Undo</button>` : ''}
+      </div></div>`;
+  return `<h1>Reviews</h1><p class="sub">Honest opinions leads text in. Only reviews with their permission can be approved for the website.</p>
+  <div class="card"><h2>${ready} / 10 ready for the website</h2>
+    <div class="frow" style="grid-template-columns:1fr 60px"><div class="bar"><div style="width:${Math.min(100, ready*10)}%"></div></div><b>${ready}</b></div>
+    <p class="note">At 10 approved reviews they go live on onewebonline.com with the line: "Some clients received a discount for sharing feedback."</p></div>
+  ${list.length ? `<div class="grid g2">${list.map(card).join('')}</div>` : '<div class="card empty">No reviews yet.</div>'}`;
+}
+
 const savebar = () => `<div class="savebar"><span id="savemsg">${DIRTY ? 'Unsaved changes' : ''}</span><button class="btn btn-line" id="discard" ${DIRTY?'':'disabled'}>Discard</button><button class="btn btn-gold" id="save">Save settings</button></div>`;
 function markDirty(){ DIRTY = true; const m = $('#savemsg'); if (m) m.textContent = 'Unsaved changes'; const d = $('#discard'); if (d) d.disabled = false; ladderPreview(); }
 function ladderPreview(){ const el = $('#ladder'); if (!el) return; const s = DRAFT; const steps = [s.listPrice, s.commitPrice].concat(s.discountSteps||[]).filter(n => n >= s.floorPrice); el.textContent = steps.map(n => '$'+n).join(' → ') + `  (floor $${s.floorPrice})`; }
@@ -277,6 +308,7 @@ function bind(){
     const k = el.dataset.k; let v = el.type === 'checkbox' ? el.checked : el.value;
     if ('num' in el.dataset) v = Number(v);
     if ('list' in el.dataset) v = String(v).split(/[,\s]+/).map(Number).filter(n => n > 0);
+    if ('lines' in el.dataset) v = String(v).split(/\n+/).map(x => x.trim()).filter(Boolean);
     DRAFT[k] = v; markDirty();
   });
   document.querySelectorAll('[data-v]').forEach(el => el.oninput = el.onchange = () => { DRAFT.voice = DRAFT.voice || {provider:'telnyx',voiceId:'',speed:1,notes:''}; DRAFT.voice[el.dataset.v] = 'num' in el.dataset ? Number(el.value) : el.value; markDirty(); });
@@ -292,6 +324,7 @@ function bind(){
   };
   const disc = $('#discard'); if (disc) disc.onclick = () => { DIRTY = false; DRAFT = JSON.parse(JSON.stringify(STATE.settings)); render(); };
   document.querySelectorAll('[data-c]').forEach(el => el.onclick = () => { SEL = el.dataset.c; render(); });
+  document.querySelectorAll('[data-rv]').forEach(el => el.onclick = () => load('review_set', { id: el.dataset.rv, status: el.dataset.st }));
   const ct = $('#cleartests'); if (ct) ct.onclick = () => load('clear_tests');
   const ts = $('#tsend'); if (ts) { const send = () => testSend(); ts.onclick = send; $('#tmsg').onkeydown = e => { if (e.key === 'Enter') send(); }; }
   const tr = $('#treset'); if (tr) tr.onclick = () => testSend(true);
