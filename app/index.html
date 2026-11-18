@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>One Web — Studio Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0a0a;--bg2:#121211;--bg3:#1a1a18;--line:rgba(237,232,224,.10);--txt:#ede8e0;--mut:#9b958c;--gold:#c9a86a;--gold2:#e6cf9e;--ok:#7bc47f;--warn:#e0a458;--bad:#e06c6c;--serif:"Instrument Serif",Georgia,serif;--sans:"Inter",system-ui,sans-serif}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font-family:var(--sans);font-size:14px;line-height:1.5}
+button,input,select,textarea{font:inherit;color:inherit}
+.app{display:grid;grid-template-columns:230px 1fr;min-height:100vh}.app>div{min-width:0}
+aside{border-right:1px solid var(--line);padding:24px 16px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:4px}
+.brand{font-family:var(--serif);font-size:26px;margin:0 8px 22px}.brand span{color:var(--gold)}
+.tab{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;color:var(--mut);border:0;background:none;text-align:left;width:100%}
+.tab:hover{color:var(--txt);background:var(--bg2)}.tab.on{color:var(--txt);background:var(--bg3)}
+.tab i{width:7px;height:7px;border-radius:50%;background:var(--line)}.tab.on i{background:var(--gold)}
+aside .foot{margin-top:auto;font-size:12px;color:var(--mut);padding:0 8px}
+main{padding:32px clamp(16px,4vw,48px);max-width:1200px;width:100%}
+h1{font-family:var(--serif);font-weight:400;font-size:44px;margin:0 0 4px;letter-spacing:-.01em}
+h2{font-family:var(--serif);font-weight:400;font-size:26px;margin:0 0 14px}
+.sub{color:var(--mut);margin:0 0 28px}
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:16px;padding:22px;margin-bottom:18px}
+.grid{display:grid;gap:18px}.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}
+.kpi b{display:block;font-family:var(--serif);font-weight:400;font-size:40px;line-height:1.1}.kpi span{color:var(--mut);font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+.funnel{display:flex;flex-direction:column;gap:10px}
+.frow{display:grid;grid-template-columns:170px 1fr 60px;gap:14px;align-items:center}
+.frow .bar{height:12px;background:var(--bg3);border-radius:99px;overflow:hidden}.frow .bar div{height:100%;background:linear-gradient(90deg,var(--gold),var(--gold2));border-radius:99px}
+.frow .soon{color:var(--mut);font-size:12px}
+.frow.dim{opacity:.45}
+label{display:block;font-size:12px;color:var(--mut);letter-spacing:.06em;text-transform:uppercase;margin:0 0 6px}
+input[type=text],input[type=number],input[type=password],select,textarea{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--gold)}
+textarea{min-height:90px;resize:vertical}
+.field{margin-bottom:16px}
+.range{display:flex;align-items:center;gap:12px}.range input{flex:1;accent-color:var(--gold)}.range small{color:var(--mut);width:70px;font-size:12px}.range small:last-child{text-align:right}
+.toggle{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
+.toggle input{width:42px;height:22px;accent-color:var(--gold)}
+.btn{border:0;border-radius:99px;padding:10px 20px;cursor:pointer;font-weight:600}
+.btn-gold{background:var(--gold);color:#0a0a0a}.btn-gold:hover{background:var(--gold2)}
+.btn-line{background:none;border:1px solid var(--line)}.btn-line:hover{border-color:var(--gold)}
+.btn-sm{padding:6px 12px;font-size:12px}
+.rules .rule{display:flex;gap:8px;margin-bottom:8px}.rules .rule input{flex:1}
+.savebar{position:sticky;bottom:16px;display:flex;justify-content:flex-end;gap:10px;align-items:center;margin-top:10px}
+.savebar span{color:var(--mut);font-size:13px}
+.pill{display:inline-block;font-size:11px;padding:3px 9px;border-radius:99px;background:var(--bg3);color:var(--mut);text-transform:uppercase;letter-spacing:.06em}
+.pill.preview_requested{color:var(--gold2)}.pill.ready_to_pay,.pill.won{color:var(--ok)}.pill.needs_human{color:var(--warn)}.pill.lost,.pill.opted_out{color:var(--bad)}
+.convos{display:grid;grid-template-columns:320px 1fr;gap:18px}
+.clist{max-height:70vh;overflow:auto}
+.citem{padding:12px;border-radius:10px;cursor:pointer;border:1px solid transparent}.citem:hover{background:var(--bg3)}.citem.on{border-color:var(--gold)}
+.citem b{display:block}.citem small{color:var(--mut)}
+.thread{display:flex;flex-direction:column;gap:8px;max-height:60vh;overflow:auto;padding:4px}
+.msg{max-width:78%;padding:10px 14px;border-radius:16px;white-space:pre-wrap}
+.msg.user{align-self:flex-start;background:var(--bg3);border-bottom-left-radius:4px}
+.msg.assistant{align-self:flex-end;background:#2a2417;color:#f3e7cf;border-bottom-right-radius:4px}
+.msg small{display:block;opacity:.55;font-size:10px;margin-top:4px}
+.meta{font-size:12px;color:var(--mut);margin:6px 0 0}
+.chatbox{display:flex;gap:10px;margin-top:14px}.chatbox input{flex:1}
+.empty{color:var(--mut);padding:30px;text-align:center}
+.note{font-size:12px;color:var(--mut);margin-top:6px}
+.login{max-width:380px;margin:12vh auto;padding:0 16px}
+.err{color:var(--bad);font-size:13px;min-height:18px}
+.hide{display:none!important}
+.mtabs{display:none}
+@media (max-width:900px){
+ .app{grid-template-columns:1fr}aside{display:none}
+ .mtabs{display:flex;gap:6px;overflow-x:auto;padding:12px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:5}
+ .mtabs .tab{white-space:nowrap;width:auto}
+ .g2,.g3,.g4,.convos{grid-template-columns:1fr}.g4.kpis{grid-template-columns:1fr 1fr}
+ .frow{grid-template-columns:120px 1fr 40px}
+ main{padding:20px 16px}h1{font-size:34px}
+}
+</style>
+</head>
+<body>
+
+<div id="login" class="login hide">
+  <div class="brand">One Web<span>.</span></div>
+  <div class="card">
+    <h2>Studio sign in</h2>
+    <p class="sub" style="margin-bottom:18px">Use your HQ Dashboard login from n8n.</p>
+    <div class="field"><label>Username</label><input type="text" id="lu" autocomplete="username"></div>
+    <div class="field"><label>Password</label><input type="password" id="lp" autocomplete="current-password"></div>
+    <div class="toggle" style="border:0;padding-top:0"><span>Remember on this device</span><input type="checkbox" id="lr"></div>
+    <div class="err" id="lerr"></div>
+    <button class="btn btn-gold" id="lbtn" style="width:100%">Sign in</button>
+  </div>
+</div>
+
+<div id="app" class="app hide">
+  <aside>
+    <div class="brand">One Web<span>.</span></div>
+    <nav id="nav"></nav>
+    <div class="foot"><div id="synced">—</div><button class="btn btn-line btn-sm" id="logout" style="margin-top:10px">Sign out</button></div>
+  </aside>
+  <div>
+    <div class="mtabs" id="mnav"></div>
+    <main id="main"></main>
+  </div>
+</div>
+
+<script>
+const API = 'https://n8n-production-9be3db1c.up.railway.app/webhook/oneweb-api';
+const CHAT = 'https://n8n-production-9be3db1c.up.railway.app/webhook/oneweb-test-chat-b3a761a6';
+const TABS = [['overview','Overview'],['convos','Conversations'],['closer','AI Closer'],['pricing','Pricing'],['voice','Voice & Dialer'],['test','Test Chat']];
+let AUTH = null, STATE = null, TAB = 'overview', DRAFT = null, SEL = null, DIRTY = false;
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ago = t => { if (!t) return '—'; const s = (Date.now() - t) / 1000; return s < 60 ? 'just now' : s < 3600 ? Math.floor(s/60)+'m ago' : s < 86400 ? Math.floor(s/3600)+'h ago' : Math.floor(s/86400)+'d ago'; };
+const store = { get(k){ try { return sessionStorage.getItem(k) || localStorage.getItem(k); } catch(e){ return null; } },
+  set(k,v,remember){ try { (remember ? localStorage : sessionStorage).setItem(k,v); } catch(e){} },
+  clear(k){ try { sessionStorage.removeItem(k); localStorage.removeItem(k); } catch(e){} } };
+
+async function call(url, body){
+  const r = await fetch(url, { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Basic '+AUTH }, body: JSON.stringify(body) });
+  if (r.status === 401 || r.status === 403) { const e = new Error('auth'); e.auth = true; throw e; }
+  if (!r.ok) throw new Error('Server error '+r.status);
+  return r.json();
+}
+async function load(op='state', extra={}){
+  STATE = await call(API, Object.assign({ op }, extra));
+  if (!DIRTY) DRAFT = JSON.parse(JSON.stringify(STATE.settings));
+  $('#synced').textContent = 'Synced '+new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
+  render();
+}
+
+function nav(){
+  const h = TABS.map(([k,l]) => `<button class="tab ${TAB===k?'on':''}" data-t="${k}"><i></i>${l}</button>`).join('');
+  $('#nav').innerHTML = h; $('#mnav').innerHTML = h;
+  document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { TAB = b.dataset.t; render(); });
+}
+function render(){ nav(); const f = { overview, convos, closer, pricing, voice, test }[TAB]; $('#main').innerHTML = f(); bind(); }
+
+function overview(){
+  const p = STATE.pipeline, s = STATE.settings;
+  const rows = [
+    ['Leads scraped', null], ['Landlines found', null], ['Voicemails dropped', null],
+    ['Replied', p.replied], ['Preview requested', p.preview_requested], ['Ready to pay', p.ready_to_pay], ['Won', p.won],
+  ];
+  const max = Math.max(1, ...rows.map(r => r[1] || 0));
+  return `<h1>Overview</h1><p class="sub">Your outbound pipeline at a glance. Test chats are excluded.</p>
+  <div class="grid g4 kpis">
+    <div class="card kpi"><span>Replies</span><b>${p.replied}</b></div>
+    <div class="card kpi"><span>Previews</span><b>${p.preview_requested}</b></div>
+    <div class="card kpi"><span>Needs you</span><b style="color:${p.needs_human?'var(--warn)':'inherit'}">${p.needs_human}</b></div>
+    <div class="card kpi"><span>Daily goal</span><b>${(s.dialer||{}).dailyTarget ?? 500}</b></div>
+  </div>
+  <div class="card"><h2>Pipeline</h2><div class="funnel">
+    ${rows.map(([l,v]) => v === null
+      ? `<div class="frow dim"><span>${l}</span><div class="bar"></div><span class="soon">soon</span></div>`
+      : `<div class="frow"><span>${l}</span><div class="bar"><div style="width:${Math.round((v/max)*100)}%"></div></div><b>${v}</b></div>`).join('')}
+  </div><p class="note">Scraped / landline / voicemail counts connect when the voicemail dialer is built.</p></div>
+  <div class="grid g2">
+    <div class="card"><h2>Closed out</h2><div class="funnel">
+      <div class="frow"><span>Lost</span><div class="bar"><div style="width:${Math.min(100,p.lost*10)}%;background:var(--bad)"></div></div><b>${p.lost}</b></div>
+      <div class="frow"><span>Opted out</span><div class="bar"><div style="width:${Math.min(100,p.opted_out*10)}%;background:var(--bad)"></div></div><b>${p.opted_out}</b></div>
+    </div></div>
+    <div class="card"><h2>Live status</h2>
+      <div class="toggle" style="border:0"><span>Text closer</span><span class="pill ready_to_pay">On</span></div>
+      <div class="toggle"><span>Sending numbers</span><span class="pill ${(s.ourNumbers||[]).length?'ready_to_pay':'needs_human'}">${(s.ourNumbers||[]).length || 'None yet'}</span></div>
+      <div class="toggle"><span>Voicemail dialer</span><span class="pill">Not built</span></div>
+      <div class="toggle"><span>Preview builder</span><span class="pill">Not built</span></div>
+    </div>
+  </div>`;
+}
+
+function convos(){
+  const list = STATE.convos;
+  if (!list.length) return `<h1>Conversations</h1><p class="sub">Every lead that texts back shows up here.</p><div class="card empty">No conversations yet.</div>`;
+  if (!SEL || !list.find(c => c.phone === SEL)) SEL = list[0].phone;
+  const c = list.find(x => x.phone === SEL);
+  return `<h1>Conversations</h1><p class="sub">Every lead that texts back, with the AI's replies and the actions it took.</p>
+  <div style="margin-bottom:12px"><button class="btn btn-line btn-sm" id="cleartests">Clear test chats</button></div>
+  <div class="convos">
+    <div class="card clist">${list.map(x => `<div class="citem ${x.phone===SEL?'on':''}" data-c="${esc(x.phone)}">
+      <b>${esc(x.name || x.phone)} ${x.test ? '<span class="pill">test</span>' : ''}</b>
+      <small>${esc(x.city)} · ${ago(x.lastInbound)}</small><br><span class="pill ${x.status}">${esc(x.status.replace(/_/g,' '))}</span></div>`).join('')}</div>
+    <div class="card"><h2>${esc(c.name || c.phone)}</h2>
+      <p class="meta">${esc(c.phone)} · status <span class="pill ${c.status}">${esc(c.status.replace(/_/g,' '))}</span>${c.lastPrice?` · last price $${c.lastPrice}`:''}${c.plan?` · plan ${esc(c.plan)}`:''}</p>
+      <div class="thread" style="margin-top:14px">${c.history.map(m => `<div class="msg ${m.role}">${esc(m.content)}<small>${new Date(m.at).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}</small></div>`).join('')}</div>
+      ${c.events.length ? `<p class="meta" style="margin-top:14px">Actions: ${c.events.map(e => esc(e.e)+(e.price?' $'+e.price:'')).join(' → ')}</p>` : ''}
+    </div>
+  </div>`;
+}
+
+function closer(){
+  const s = DRAFT;
+  return `<h1>AI Closer</h1><p class="sub">How the AI sounds and the rules it follows. Changes apply to the very next text.</p>
+  <div class="grid g2">
+    <div class="card"><h2>Personality</h2>
+      <div class="field"><label>Assistant name</label><input type="text" data-k="assistantName" value="${esc(s.assistantName)}"></div>
+      <div class="field"><label>Sign-off (first message only, optional)</label><input type="text" data-k="signOff" value="${esc(s.signOff)}" placeholder="e.g. — Emmanuel @ One Web"></div>
+      <div class="field"><label>Personality & voice</label><textarea data-k="personality">${esc(s.personality)}</textarea><p class="note">Describe how it should come across, e.g. "laid-back NYC, straight to the point".</p></div>
+    </div>
+    <div class="card"><h2>Tone</h2>
+      <div class="field"><label>Formal ↔ Casual</label><div class="range"><small>Formal</small><input type="range" min="0" max="100" data-k="casual" data-num value="${s.casual}"><small>Casual</small></div></div>
+      <div class="field"><label>Soft-sell ↔ Assertive</label><div class="range"><small>Soft</small><input type="range" min="0" max="100" data-k="assertive" data-num value="${s.assertive}"><small>Assertive</small></div></div>
+      <div class="field"><label>Message length</label><select data-k="length">${['short','medium','long'].map(v => `<option ${s.length===v?'selected':''}>${v}</option>`).join('')}</select></div>
+      <div class="toggle"><span>Allow emojis</span><input type="checkbox" data-k="emojis" ${s.emojis?'checked':''}></div>
+      <div class="field" style="margin-top:12px"><label>AI model</label><select data-k="model">${['gpt-5-mini','gpt-6-luna'].map(v => `<option ${s.model===v?'selected':''}>${v}</option>`).join('')}</select><p class="note">gpt-5-mini is cheapest. Switch up only if replies feel weak.</p></div>
+      <div class="field"><label>Max AI replies per lead per day</label><input type="number" data-k="maxAiRepliesPerDay" data-num value="${s.maxAiRepliesPerDay}"></div>
+    </div>
+  </div>
+  <div class="card rules"><h2>Your guardrails</h2><p class="sub" style="margin-bottom:14px">Plain-English rules the AI must follow. Built-in safety (STOP/HELP, honesty, the price floor) always wins over these.</p>
+    ${(s.customRules||[]).map((r,i) => `<div class="rule"><input type="text" data-rule="${i}" value="${esc(r)}"><button class="btn btn-line btn-sm" data-delrule="${i}">Remove</button></div>`).join('')}
+    <button class="btn btn-line btn-sm" id="addrule">+ Add rule</button>
+  </div>${savebar()}`;
+}
+
+function pricing(){
+  const s = DRAFT;
+  return `<h1>Pricing</h1><p class="sub">What the closer offers and how far it can negotiate.</p>
+  <div class="grid g2">
+    <div class="card"><h2>Website</h2>
+      <div class="grid g2"><div class="field"><label>List price $</label><input type="number" data-k="listPrice" data-num value="${s.listPrice}"></div>
+      <div class="field"><label>Commit-now price $</label><input type="number" data-k="commitPrice" data-num value="${s.commitPrice}"></div></div>
+      <div class="grid g2"><div class="field"><label>Commit window (hours)</label><input type="number" data-k="commitWindowHours" data-num value="${s.commitWindowHours}"></div>
+      <div class="field"><label>Floor $ (never below)</label><input type="number" data-k="floorPrice" data-num value="${s.floorPrice}"></div></div>
+      <div class="field"><label>Discount steps after commit price $ (comma separated)</label><input type="text" data-k="discountSteps" data-list value="${esc((s.discountSteps||[]).join(', '))}"></div>
+      <div class="toggle"><span>Strict ladder (one step per objection)</span><input type="checkbox" data-k="strictLadder" ${s.strictLadder?'checked':''}></div>
+    </div>
+    <div class="card"><h2>Hosting</h2>
+      <div class="field"><label>Hosted & cared for $ / month</label><input type="number" data-k="hostingMonthly" data-num value="${s.hostingMonthly}"></div>
+      <div class="toggle"><span>Offer 1st month free at the lowest step</span><input type="checkbox" data-k="freeHostingMonthAtFloor" ${s.freeHostingMonthAtFloor?'checked':''}></div>
+      <p class="note" style="margin-top:14px">Ladder preview: <b id="ladder"></b></p>
+    </div>
+  </div>${savebar()}`;
+}
+
+function voice(){
+  const s = DRAFT, v = s.voice || { provider:'telnyx', voiceId:'', speed:1, notes:'' }, d = s.dialer || { dailyTarget:500, targetType:'dials', enabled:false };
+  return `<h1>Voice & Dialer</h1><p class="sub">Settings the voicemail dialer will use once it's built.</p>
+  <div class="grid g2">
+    <div class="card"><h2>Voice</h2>
+      <div class="field"><label>Provider</label><select data-v="provider">${[['telnyx','Telnyx (default)'],['elevenlabs','ElevenLabs'],['retell','Retell']].map(([k,l]) => `<option value="${k}" ${v.provider===k?'selected':''}>${l}</option>`).join('')}</select></div>
+      <div class="field"><label>Voice ID (for AI voices)</label><input type="text" data-v="voiceId" value="${esc(v.voiceId)}" placeholder="Leave blank to use your recorded clip"></div>
+      <div class="field"><label>Speed</label><div class="range"><small>0.5x</small><input type="range" min="0.5" max="2" step="0.05" data-v="speed" data-num value="${v.speed}"><small>2x</small></div></div>
+      <div class="field"><label>Voice notes</label><textarea data-v="notes" placeholder="e.g. warm, mid-pace, NYC accent">${esc(v.notes)}</textarea></div>
+      <div class="field"><label>Voicemail clip</label><input type="file" accept="audio/*" disabled><p class="note">Upload switches on with the dialer build.</p></div>
+    </div>
+    <div class="card"><h2>Daily target</h2>
+      <div class="field"><label>Target per day</label><input type="number" data-d="dailyTarget" data-num value="${d.dailyTarget}"></div>
+      <div class="field"><label>Count target as</label><select data-d="targetType"><option value="dials" ${d.targetType==='dials'?'selected':''}>Dial attempts</option><option value="delivered" ${d.targetType==='delivered'?'selected':''}>Delivered voicemails</option></select></div>
+      <div class="toggle"><span>Dialer enabled</span><input type="checkbox" data-d="enabled" ${d.enabled?'checked':''} disabled></div>
+      <p class="note">Stays off until Telnyx Verified + 10DLC are approved.</p>
+    </div>
+  </div>${savebar()}`;
+}
+
+function test(){
+  const c = STATE.convos.find(x => x.phone === '+15550000001');
+  return `<h1>Test Chat</h1><p class="sub">Text the closer as if you were a lead. Uses your saved settings. Nothing is sent by SMS.</p>
+  <div class="grid g2">
+    <div class="card"><h2>Pretend lead</h2>
+      <div class="field"><label>Business name</label><input type="text" id="tn" value="Ace Roofing"></div>
+      <div class="grid g2"><div class="field"><label>City</label><input type="text" id="tc" value="Dallas"></div><div class="field"><label>State</label><input type="text" id="ts" value="TX"></div></div>
+      <div class="field"><label>Trade</label><input type="text" id="tt" value="Roofing contractor"></div>
+      <div class="field"><label>Website status</label><select id="tw"><option value="none">No website</option><option value="social_or_free_page">Facebook / free page only</option><option value="own_site">Has own website</option></select></div>
+      <button class="btn btn-line btn-sm" id="treset">Start over</button>
+    </div>
+    <div class="card"><h2>Conversation</h2>
+      <div class="thread" id="tthread">${c ? c.history.map(m => `<div class="msg ${m.role}">${esc(m.content)}</div>`).join('') : '<div class="empty">Say hi to start.</div>'}</div>
+      <div class="chatbox"><input type="text" id="tmsg" placeholder="Type as the lead…"><button class="btn btn-gold" id="tsend">Send</button></div>
+      <p class="note" id="tinfo">${c ? `Status: ${esc(c.status)}${c.lastPrice?' · last price $'+c.lastPrice:''}` : ''}</p>
+    </div>
+  </div>`;
+}
+
+const savebar = () => `<div class="savebar"><span id="savemsg">${DIRTY ? 'Unsaved changes' : ''}</span><button class="btn btn-line" id="discard" ${DIRTY?'':'disabled'}>Discard</button><button class="btn btn-gold" id="save">Save settings</button></div>`;
+function markDirty(){ DIRTY = true; const m = $('#savemsg'); if (m) m.textContent = 'Unsaved changes'; const d = $('#discard'); if (d) d.disabled = false; ladderPreview(); }
+function ladderPreview(){ const el = $('#ladder'); if (!el) return; const s = DRAFT; const steps = [s.listPrice, s.commitPrice].concat(s.discountSteps||[]).filter(n => n >= s.floorPrice); el.textContent = steps.map(n => '$'+n).join(' → ') + `  (floor $${s.floorPrice})`; }
+
+function bind(){
+  document.querySelectorAll('[data-k]').forEach(el => el.oninput = el.onchange = () => {
+    const k = el.dataset.k; let v = el.type === 'checkbox' ? el.checked : el.value;
+    if ('num' in el.dataset) v = Number(v);
+    if ('list' in el.dataset) v = String(v).split(/[,\s]+/).map(Number).filter(n => n > 0);
+    DRAFT[k] = v; markDirty();
+  });
+  document.querySelectorAll('[data-v]').forEach(el => el.oninput = el.onchange = () => { DRAFT.voice = DRAFT.voice || {provider:'telnyx',voiceId:'',speed:1,notes:''}; DRAFT.voice[el.dataset.v] = 'num' in el.dataset ? Number(el.value) : el.value; markDirty(); });
+  document.querySelectorAll('[data-d]').forEach(el => el.oninput = el.onchange = () => { DRAFT.dialer = DRAFT.dialer || {dailyTarget:500,targetType:'dials',enabled:false}; DRAFT.dialer[el.dataset.d] = el.type === 'checkbox' ? el.checked : ('num' in el.dataset ? Number(el.value) : el.value); markDirty(); });
+  document.querySelectorAll('[data-rule]').forEach(el => el.oninput = () => { DRAFT.customRules[+el.dataset.rule] = el.value; markDirty(); });
+  document.querySelectorAll('[data-delrule]').forEach(el => el.onclick = () => { DRAFT.customRules.splice(+el.dataset.delrule, 1); markDirty(); render(); });
+  const add = $('#addrule'); if (add) add.onclick = () => { DRAFT.customRules = (DRAFT.customRules||[]).concat(['']); markDirty(); render(); const ins = document.querySelectorAll('[data-rule]'); ins[ins.length-1].focus(); };
+  const save = $('#save'); if (save) save.onclick = async () => {
+    save.disabled = true; $('#savemsg').textContent = 'Saving…';
+    try { DIRTY = false; await load('save_settings', { settings: DRAFT }); $('#savemsg').textContent = 'Saved ✓'; }
+    catch(e){ DIRTY = true; $('#savemsg').textContent = e.auth ? 'Signed out' : 'Save failed, try again'; if (e.auth) logout(); }
+    save.disabled = false;
+  };
+  const disc = $('#discard'); if (disc) disc.onclick = () => { DIRTY = false; DRAFT = JSON.parse(JSON.stringify(STATE.settings)); render(); };
+  document.querySelectorAll('[data-c]').forEach(el => el.onclick = () => { SEL = el.dataset.c; render(); });
+  const ct = $('#cleartests'); if (ct) ct.onclick = () => load('clear_tests');
+  const ts = $('#tsend'); if (ts) { const send = () => testSend(); ts.onclick = send; $('#tmsg').onkeydown = e => { if (e.key === 'Enter') send(); }; }
+  const tr = $('#treset'); if (tr) tr.onclick = () => testSend(true);
+  ladderPreview();
+}
+
+async function testSend(reset){
+  const input = $('#tmsg'); const text = reset ? '' : input.value.trim();
+  if (!reset && !text) return;
+  const th = $('#tthread');
+  if (reset) { th.innerHTML = '<div class="empty">Say hi to start.</div>'; }
+  else { if (th.querySelector('.empty')) th.innerHTML = ''; th.insertAdjacentHTML('beforeend', `<div class="msg user">${esc(text)}</div><div class="msg assistant" id="typing">…</div>`); input.value = ''; th.scrollTop = th.scrollHeight; }
+  const lead = { name: $('#tn').value, city: $('#tc').value, state: $('#ts').value, category: $('#tt').value, website_status: $('#tw').value };
+  try {
+    if (reset) { await call(CHAT, { from:'+15550000001', text:'', lead, reset:true }).catch(()=>{}); await load(); return; }
+    const r = await call(CHAT, { from:'+15550000001', text, lead });
+    $('#typing').outerHTML = `<div class="msg assistant">${esc(r.text || '(no reply)')}</div>`;
+    $('#tinfo').textContent = `Action: ${r.action} · status: ${r.status}${r.price ? ' · price $'+r.price : ''}${r.notes ? ' · '+r.notes : ''}`;
+    th.scrollTop = th.scrollHeight;
+  } catch(e){ const t = $('#typing'); if (t) t.outerHTML = `<div class="msg assistant" style="color:var(--bad)">${e.auth?'Signed out':'Error: '+esc(e.message)}</div>`; }
+}
+
+function logout(){ store.clear('ow_auth'); AUTH = null; $('#app').classList.add('hide'); $('#login').classList.remove('hide'); }
+async function start(){
+  AUTH = store.get('ow_auth');
+  if (!AUTH) { $('#login').classList.remove('hide'); return; }
+  try { await load(); $('#login').classList.add('hide'); $('#app').classList.remove('hide'); }
+  catch(e){ if (e.auth) logout(); else { $('#login').classList.remove('hide'); $('#lerr').textContent = 'Could not reach the server: '+e.message; } }
+}
+$('#lbtn').onclick = async () => {
+  $('#lerr').textContent = '';
+  AUTH = btoa(unescape(encodeURIComponent($('#lu').value + ':' + $('#lp').value)));
+  try { await load(); store.set('ow_auth', AUTH, $('#lr').checked); $('#lp').value = ''; $('#login').classList.add('hide'); $('#app').classList.remove('hide'); }
+  catch(e){ AUTH = null; $('#lerr').textContent = e.auth ? 'Wrong username or password.' : 'Could not reach the server.'; }
+};
+$('#lp').onkeydown = e => { if (e.key === 'Enter') $('#lbtn').click(); };
+$('#logout').onclick = logout;
+setInterval(() => { if (AUTH && !DIRTY && TAB !== 'test' && document.visibilityState === 'visible') load().catch(()=>{}); }, 30000);
+start();
+</script>
+</body>
+</html>
