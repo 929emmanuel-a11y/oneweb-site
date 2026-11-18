@@ -158,3 +158,4 @@ footer .legal{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px
   .svc h3{font-size:30px}.faq summary{font-size:21px}
   .contact{padding:110px 0 100px}
 }
+.nav nav a.btn-gold,.nav nav a.btn-gold:hover{color:#0a0a0a}
