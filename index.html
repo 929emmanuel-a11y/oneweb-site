@@ -117,6 +117,15 @@
   </div>
 </div></section>
 
+<section class="block" id="testimonials" style="padding-top:0;display:none"><div class="wrap">
+  <div class="head">
+    <div><div class="eyebrow">Client feedback</div><h2>In their <em>own words.</em></h2></div>
+    <p>Real texts from business owners we've worked with, shared with their permission.</p>
+  </div>
+  <div class="tgrid" id="tgrid"></div>
+  <p class="note" style="margin-top:22px">Some clients received a discount for sharing feedback.</p>
+</div></section>
+
 <section class="contact" id="contact"><div class="wrap">
   <div class="eyebrow r">Start a project</div>
   <h2 class="r">Let's build something <em>worth calling.</em></h2>
@@ -138,6 +147,15 @@
 <script>
 const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.12});
 document.querySelectorAll('.r').forEach(el=>io.observe(el));
+</script>
+<style>.tgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}.tcard{background:var(--bg2);border:1px solid var(--line);border-radius:18px;padding:24px}.tcard .bub{background:#2a2417;color:#f3e7cf;padding:14px 16px;border-radius:18px;border-bottom-left-radius:4px;font-size:15px;white-space:pre-wrap}.tcard small{display:block;margin-top:12px;color:var(--mut)}@media(max-width:900px){.tgrid{grid-template-columns:1fr}}</style>
+<script>
+fetch('https://n8n-production-9be3db1c.up.railway.app/webhook/oneweb-testimonials').then(r=>r.json()).then(d=>{
+  if(!d||!d.show||!d.reviews||!d.reviews.length) return;
+  const e=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  document.getElementById('tgrid').innerHTML=d.reviews.map(r=>'<div class="tcard"><div class="bub">'+e(r.text)+'</div><small><b>'+e(r.name)+'</b>'+(r.city?' · '+e(r.city):'')+'</small></div>').join('');
+  document.getElementById('testimonials').style.display='';
+}).catch(()=>{});
 </script>
 </body>
 </html>
