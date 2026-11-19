@@ -106,6 +106,8 @@ textarea{min-height:90px;resize:vertical}
 <script>
 const API = 'https://n8n-production-9be3db1c.up.railway.app/webhook/oneweb-api';
 const CHAT = 'https://n8n-production-9be3db1c.up.railway.app/webhook/oneweb-test-chat-b3a761a6';
+const DIAL = 'https://n8n-production-9be3db1c.up.railway.app/webhook/oneweb-dialer-stats';
+let DSTATS = null;
 const TABS = [['overview','Overview'],['convos','Conversations'],['closer','AI Closer'],['pricing','Pricing'],['reviews','Reviews'],['voice','Phone & Dialer'],['test','Test Chat']];
 let AUTH = null, STATE = null, TAB = 'overview', DRAFT = null, SEL = null, DIRTY = false;
 const $ = s => document.querySelector(s);
@@ -123,6 +125,7 @@ async function call(url, body){
 }
 async function load(op='state', extra={}){
   STATE = await call(API, Object.assign({ op }, extra));
+  try { DSTATS = await call(DIAL, {}); } catch (e) { if (e.auth) throw e; }
   if (!DIRTY) DRAFT = JSON.parse(JSON.stringify(STATE.settings));
   $('#synced').textContent = 'Synced '+new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
   render();
@@ -135,10 +138,21 @@ function nav(){
 }
 function render(){ nav(); const f = { overview, convos, closer, pricing, reviews, voice, test }[TAB]; $('#main').innerHTML = f(); bind(); }
 
+function dialToday(){
+  const d = DSTATS || {}, t = d.today || {}, o = (d.outcomes || {})[t.date] || {};
+  return { dialed: t.dialed || 0, voicemail: o.voicemail || 0, human: o.human || 0, unsure: o.unsure || 0, noAnswer: o.noAnswer || 0,
+    busy: o.busy || 0, failed: o.failed || 0, inbound: o.inbound || 0, avg: o.ended ? Math.round((o.talkSec || 0) / o.ended) : 0 };
+}
+function dialStatus(){
+  const d = (STATE.settings || {}).dialer || {};
+  if (!d.enabled) return ['Off', ''];
+  if (!d.connectionId || !(STATE.settings.ourNumbers || []).length) return ['Needs setup', 'needs_human'];
+  return ['On', 'ready_to_pay'];
+}
 function overview(){
   const p = STATE.pipeline, s = STATE.settings;
   const rows = [
-    ['Leads scraped', (STATE.leads||{}).scraped || null], ['Landlines found', (STATE.leads||{}).landlines || null], ['Voicemails dropped', null],
+    ['Leads scraped', (STATE.leads||{}).scraped || null], ['Landlines found', (STATE.leads||{}).landlines || null], ['Voicemails dropped', dialToday().voicemail],
     ['Replied', p.replied], ['Preview requested', p.preview_requested], ['Ready to pay', p.ready_to_pay], ['Won', p.won],
   ];
   const max = Math.max(1, ...rows.map(r => r[1] || 0));
@@ -154,7 +168,7 @@ function overview(){
     ${rows.map(([l,v]) => v === null
       ? `<div class="frow dim"><span>${l}</span><div class="bar"></div><span class="soon">soon</span></div>`
       : `<div class="frow"><span>${l}</span><div class="bar"><div style="width:${Math.round((v/max)*100)}%"></div></div><b>${v}</b></div>`).join('')}
-  </div><p class="note">${(STATE.leads||{}).scraped ? `Today: ${STATE.leads.today.scraped} scraped, ${STATE.leads.today.landlines} landlines. ` : ''}Voicemail counts connect when the dialer is built.</p></div>
+  </div><p class="note">${(STATE.leads||{}).scraped ? `Today: ${STATE.leads.today.scraped} scraped, ${STATE.leads.today.landlines} landlines. ` : ''}${DSTATS ? `Dialer today: ${dialToday().dialed} calls, ${dialToday().voicemail} voicemails, ${DSTATS.queued} leads waiting.` : ''}</p></div>
   <div class="grid g2">
     <div class="card"><h2>Closed out</h2><div class="funnel">
       <div class="frow"><span>Lost</span><div class="bar"><div style="width:${Math.min(100,p.lost*10)}%;background:var(--bad)"></div></div><b>${p.lost}</b></div>
@@ -164,8 +178,8 @@ function overview(){
       <div class="toggle" style="border:0"><span>Text closer</span><span class="pill ready_to_pay">On</span></div>
       <div class="toggle"><span>Sending numbers</span><span class="pill ${(s.ourNumbers||[]).length?'ready_to_pay':'needs_human'}">${(s.ourNumbers||[]).length || 'None yet'}</span></div>
       <div class="toggle"><span>Lead cleaner</span><span class="pill ${(STATE.leads||{}).scraped?'ready_to_pay':''}">${(STATE.leads||{}).scraped?'Reporting':'No runs yet'}</span></div>
-      <div class="toggle"><span>Voicemail dialer</span><span class="pill">Not built</span></div>
-      <div class="toggle"><span>Preview builder</span><span class="pill">Not built</span></div>
+      <div class="toggle"><span>Voicemail dialer</span><span class="pill ${dialStatus()[1]}">${dialStatus()[0]}</span></div>
+      <div class="toggle"><span>Preview builder</span><span class="pill ready_to_pay">On</span></div>
     </div>
   </div>`;
 }
@@ -238,27 +252,42 @@ function pricing(){
 }
 
 function voice(){
-  const s = DRAFT, v = s.voice || { provider:'telnyx', voiceId:'', speed:1, notes:'' }, d = s.dialer || { dailyTarget:500, targetType:'dials', enabled:false };
-  return `<h1>Phone & Dialer</h1><p class="sub">Settings the voicemail dialer will use once it's built.</p>
+  const s = DRAFT;
+  const d = Object.assign({ dailyTarget:50, enabled:false, startHour:9, endHour:20, liveAction:'hangup', voicemailUrl:'', perNumberCap:100, connectionId:'' }, s.dialer || {});
+  const t = dialToday(), [stTxt, stCls] = dialStatus();
+  const ready = d.connectionId && (s.ourNumbers||[]).length;
+  const hr = h => ((h % 12) || 12) + (h < 12 ? 'am' : 'pm');
+  return `<h1>Phone & Dialer</h1><p class="sub">Voicemail drops to callable leads. When they text back, the AI closer takes over.</p>
+  <div class="grid g4 kpis">
+    <div class="card kpi"><span>Calls today</span><b>${t.dialed}</b></div>
+    <div class="card kpi"><span>Voicemails left</span><b>${t.voicemail}</b></div>
+    <div class="card kpi"><span>Live pickups</span><b>${t.human + t.unsure}</b></div>
+    <div class="card kpi"><span>Leads waiting</span><b>${DSTATS ? DSTATS.queued : '—'}</b></div>
+  </div>
   <div class="grid g2">
-    <div class="card"><h2>Voice</h2>
-      <div class="field"><label>Provider</label><select data-v="provider">${[['telnyx','Telnyx (default)'],['elevenlabs','ElevenLabs'],['retell','Retell']].map(([k,l]) => `<option value="${k}" ${v.provider===k?'selected':''}>${l}</option>`).join('')}</select></div>
-      <div class="field"><label>Voice ID (for AI voices)</label><input type="text" data-v="voiceId" value="${esc(v.voiceId)}" placeholder="Leave blank to use your recorded clip"></div>
-      <div class="field"><label>Speed</label><div class="range"><small>0.5x</small><input type="range" min="0.5" max="2" step="0.05" data-v="speed" data-num value="${v.speed}"><small>2x</small></div></div>
-      <div class="field"><label>Voice notes</label><textarea data-v="notes" placeholder="e.g. warm, mid-pace, NYC accent">${esc(v.notes)}</textarea></div>
-      <div class="field"><label>Voicemail clip</label><input type="file" accept="audio/*" disabled><p class="note">Upload switches on with the dialer build.</p></div>
+    <div class="card"><h2>Dialer</h2>
+      <div class="toggle" style="border:0"><span>Status</span><span class="pill ${stCls}">${stTxt}</span></div>
+      <div class="toggle"><span>Dialer enabled</span><input type="checkbox" data-d="enabled" ${d.enabled?'checked':''} ${ready?'':'disabled'}></div>
+      ${ready ? '' : '<p class="note">Add your Telnyx numbers and the Call Control App ID, save, then switch it on.</p>'}
+      <div class="field"><label>Calls per day</label><input type="number" min="0" max="5000" data-d="dailyTarget" data-num value="${d.dailyTarget}"><p class="note">Start at 50, then ramp up.</p></div>
+      <div class="field"><label>Max calls per number per day</label><input type="number" min="10" max="300" data-d="perNumberCap" data-num value="${d.perNumberCap}"></div>
+      <div class="grid g2" style="gap:12px">
+        <div class="field"><label>Start calling (their time)</label><select data-d="startHour" data-num>${[8,9,10,11,12,13,14,15,16,17,18,19,20].map(h => `<option value="${h}" ${d.startHour===h?'selected':''}>${hr(h)}</option>`).join('')}</select></div>
+        <div class="field"><label>Stop calling</label><select data-d="endHour" data-num>${[9,10,11,12,13,14,15,16,17,18,19,20,21].map(h => `<option value="${h}" ${d.endHour===h?'selected':''}>${hr(h)}</option>`).join('')}</select></div>
+      </div>
+      <p class="note">Weekdays only, in each business's own time zone. Federal rules allow 8am to 9pm.</p>
+      <div class="field"><label>If a person picks up</label><select data-d="liveAction"><option value="hangup" ${d.liveAction!=='play'?'selected':''}>Hang up (cheapest)</option><option value="play" ${d.liveAction==='play'?'selected':''}>Play the message anyway</option></select></div>
     </div>
-    <div class="card"><h2>Sending numbers</h2>
+    <div class="card"><h2>Voicemail message</h2>
+      <div class="field"><label>Recording link (MP3 or WAV, under 25 seconds)</label><input type="text" data-d="voicemailUrl" value="${esc(d.voicemailUrl)}" placeholder="https://onewebonline.com/assets/voicemail.mp3"><p class="note">Leave empty to use the built-in robot voice until your recording is ready.</p></div>
+      <h2 style="margin-top:18px">Telnyx setup</h2>
       <div class="field"><label>Your Telnyx numbers (one per line)</label><textarea data-k="ourNumbers" data-lines placeholder="+12145550123">${esc((s.ourNumbers||[]).join('\n'))}</textarea>
-      <p class="note">The closer only replies on these numbers. Leave empty until they're bought.</p></div>
+      <p class="note">Calls and texts go out from these. The closer only replies on these numbers.</p></div>
+      <div class="field"><label>Call Control App ID</label><input type="text" data-d="connectionId" value="${esc(d.connectionId)}" placeholder="From Telnyx: Voice, Programmable Voice"></div>
     </div>
-    <div class="card"><h2>Daily target</h2>
-      <div class="field"><label>Target per day</label><input type="number" data-d="dailyTarget" data-num value="${d.dailyTarget}"></div>
-      <div class="field"><label>Count target as</label><select data-d="targetType"><option value="dials" ${d.targetType==='dials'?'selected':''}>Dial attempts</option><option value="delivered" ${d.targetType==='delivered'?'selected':''}>Delivered voicemails</option></select></div>
-      <div class="toggle"><span>Dialer enabled</span><input type="checkbox" data-d="enabled" ${d.enabled?'checked':''} disabled></div>
-      <p class="note">Stays off until Telnyx Verified + 10DLC are approved.</p>
-    </div>
-  </div>${savebar()}`;
+  </div>
+  ${DSTATS && DSTATS.today && Object.keys(DSTATS.today.perNumber||{}).length ? `<div class="card"><h2>Calls per number today</h2><div class="funnel">${Object.entries(DSTATS.today.perNumber).map(([n,c]) => `<div class="frow"><span>${esc(n)}</span><div class="bar"><div style="width:${Math.min(100, Math.round(c / (d.perNumberCap||100) * 100))}%"></div></div><b>${c}</b></div>`).join('')}</div></div>` : ''}
+  ${savebar()}`;
 }
 
 function test(){
@@ -312,7 +341,7 @@ function bind(){
     DRAFT[k] = v; markDirty();
   });
   document.querySelectorAll('[data-v]').forEach(el => el.oninput = el.onchange = () => { DRAFT.voice = DRAFT.voice || {provider:'telnyx',voiceId:'',speed:1,notes:''}; DRAFT.voice[el.dataset.v] = 'num' in el.dataset ? Number(el.value) : el.value; markDirty(); });
-  document.querySelectorAll('[data-d]').forEach(el => el.oninput = el.onchange = () => { DRAFT.dialer = DRAFT.dialer || {dailyTarget:500,targetType:'dials',enabled:false}; DRAFT.dialer[el.dataset.d] = el.type === 'checkbox' ? el.checked : ('num' in el.dataset ? Number(el.value) : el.value); markDirty(); });
+  document.querySelectorAll('[data-d]').forEach(el => el.oninput = el.onchange = () => { DRAFT.dialer = DRAFT.dialer || {dailyTarget:50,enabled:false}; DRAFT.dialer[el.dataset.d] = el.type === 'checkbox' ? el.checked : ('num' in el.dataset ? Number(el.value) : el.value); markDirty(); });
   document.querySelectorAll('[data-rule]').forEach(el => el.oninput = () => { DRAFT.customRules[+el.dataset.rule] = el.value; markDirty(); });
   document.querySelectorAll('[data-delrule]').forEach(el => el.onclick = () => { DRAFT.customRules.splice(+el.dataset.delrule, 1); markDirty(); render(); });
   const add = $('#addrule'); if (add) add.onclick = () => { DRAFT.customRules = (DRAFT.customRules||[]).concat(['']); markDirty(); render(); const ins = document.querySelectorAll('[data-rule]'); ins[ins.length-1].focus(); };
