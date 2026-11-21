@@ -107,7 +107,8 @@ textarea{min-height:90px;resize:vertical}
 const API = 'https://n8n-production-9be3db1c.up.railway.app/webhook/oneweb-api';
 const CHAT = 'https://n8n-production-9be3db1c.up.railway.app/webhook/oneweb-test-chat-b3a761a6';
 const DIAL = 'https://n8n-production-9be3db1c.up.railway.app/webhook/oneweb-dialer-stats';
-let DSTATS = null;
+let DSTATS = null, SITEBK = [];
+const EDIT = 'https://n8n-production-9be3db1c.up.railway.app/webhook/oneweb-preview-edit';
 const TABS = [['overview','Overview'],['convos','Conversations'],['closer','AI Closer'],['pricing','Pricing'],['reviews','Reviews'],['bookings','Bookings'],['results','Results'],['voice','Phone & Dialer'],['test','Test Chat']];
 let AUTH = null, STATE = null, TAB = 'overview', DRAFT = null, SEL = null, DIRTY = false;
 const $ = s => document.querySelector(s);
@@ -126,6 +127,7 @@ async function call(url, body){
 async function load(op='state', extra={}){
   STATE = await call(API, Object.assign({ op }, extra));
   try { DSTATS = await call(DIAL, {}); } catch (e) { if (e.auth) throw e; }
+  try { SITEBK = (await call(EDIT, { op: 'site_bookings' })).bookings || []; } catch (e) {}
   if (!DIRTY) DRAFT = JSON.parse(JSON.stringify(STATE.settings));
   $('#synced').textContent = 'Synced '+new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
   render();
@@ -352,7 +354,20 @@ function bookings(){
   return `<h1>Bookings</h1><p class="sub">Only businesses that said they want to see their website. Emma calls them back at the booked time automatically, and Bookkeeper pings you on Telegram.</p>
   <div class="grid" style="grid-template-columns:repeat(7,1fr);gap:10px;margin-bottom:18px">${strip}</div>
   <h2 style="margin:8px 0 12px">Upcoming (${up.length})</h2>${up.length ? up.map(row).join('') : '<div class="card empty">No bookings yet.</div>'}
-  ${past.length ? `<h2 style="margin:18px 0 12px">Recent</h2>${past.map(row).join('')}` : ''}`;
+  ${past.length ? `<h2 style="margin:18px 0 12px">Recent</h2>${past.map(row).join('')}` : ''}
+  ${siteBookings()}`;
+}
+
+function siteBookings(){
+  const list = SITEBK || []; const open = list.filter(b => !b.st).length;
+  const row = b => `<div class="card" style="padding:16px">
+      <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><b>${esc(b.name)}</b> → ${esc(b.biz || b.slug)}<br>
+      <span class="note">${esc(b.phone)}${b.service ? ' · ' + esc(b.service) : ''}${(b.date || b.time) ? ' · wants ' + esc([b.date, b.time].filter(Boolean).join(', ')) : ''} · ${ago(b.at)} · ${esc(b.site)}</span>${b.note ? `<br><span class="note">“${esc(b.note)}”</span>` : ''}</div>
+      <span class="pill ${b.st ? 'won' : 'preview_requested'}">${b.st ? esc(b.st) : 'new'}</span></div>
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">${b.st ? '' : `<button class="btn btn-gold btn-sm" data-sb="${esc(b.slug)}" data-sat="${b.at}" data-ss="handled">Handled</button>`}
+        <button class="btn btn-line btn-sm" data-sb="${esc(b.slug)}" data-sat="${b.at}" data-ss="delete">Delete</button></div></div>`;
+  return `<h2 style="margin:26px 0 6px">Client website bookings (${open} new)</h2><p class="sub">Requests customers sent through your clients' live sites. The owner already got a text for each one.</p>
+  ${list.length ? list.slice(0, 50).map(row).join('') : '<div class="card empty">No website bookings yet.</div>'}`;
 }
 
 function results(){
@@ -403,6 +418,7 @@ function bind(){
   const disc = $('#discard'); if (disc) disc.onclick = () => { DIRTY = false; DRAFT = JSON.parse(JSON.stringify(STATE.settings)); render(); };
   document.querySelectorAll('[data-c]').forEach(el => el.onclick = () => { SEL = el.dataset.c; render(); });
   document.querySelectorAll('[data-rv]').forEach(el => el.onclick = () => load('review_set', { id: el.dataset.rv, status: el.dataset.st }));
+  document.querySelectorAll('[data-sb]').forEach(el => el.onclick = async () => { if (el.dataset.ss === 'delete' && !confirm('Delete this booking request?')) return; try { SITEBK = (await call(EDIT, { op: 'site_booking_set', slug: el.dataset.sb, at: Number(el.dataset.sat), status: el.dataset.ss })).bookings || []; render(); } catch (e) { alert('Could not update. Try again.'); } });
   document.querySelectorAll('[data-bk]').forEach(el => el.onclick = () => load('booking_set', { id: el.dataset.bk, status: el.dataset.bs }));
   document.querySelectorAll('[data-bkm]').forEach(el => el.onclick = () => { const i = document.querySelector(`[data-bkt="${CSS.escape(el.dataset.bkm)}"]`); const t = i && i.value ? new Date(i.value).getTime() : 0; if (t > Date.now()) load('booking_set', { id: el.dataset.bkm, at: t }); else if (i) i.focus(); });
   const ct = $('#cleartests'); if (ct) ct.onclick = () => load('clear_tests');
