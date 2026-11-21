@@ -82,7 +82,19 @@ footer a{color:var(--mut)}
         <button class="btn btn-gold" type="submit">Log in</button>
         <button class="btn btn-line" type="button" id="back">Use another number</button>
       </form>
+      <form id="e1" class="hide">
+        <label>Email on your account<input id="em" type="email" autocomplete="email" placeholder="you@business.com" required></label>
+        <button class="btn btn-gold" type="submit">Email me a code</button>
+      </form>
+      <form id="e2" class="hide">
+        <label>6-digit code from your email<input id="ecd" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456" required></label>
+        <p class="note" id="timer" style="margin:-6px 0 14px"></p>
+        <label class="toggle" style="border:0;padding:0 0 14px"><span>Keep me logged in on this device</span><input id="erem" type="checkbox" checked></label>
+        <button class="btn btn-gold" type="submit" id="ego">Log in</button>
+        <button class="btn btn-line" type="button" id="eagain">Send a new code</button>
+      </form>
       <p class="msg" id="lmsg" role="status" aria-live="polite"></p>
+      <p style="margin:14px 0 0"><button class="btn btn-line btn-sm" type="button" id="swap">No access to your phone? Sign in with an email code instead</button></p>
     </div>
     <p class="note">Not a client yet? <a href="/">See what One Web does</a>.</p>
   </section>
@@ -139,6 +151,41 @@ $('#f2').onsubmit = async e => {
 };
 $('#out').onclick = logout;
 
+/* email login (backup when they can't get texts) */
+let EMAIL = '', TIMER = null, MODE = 'phone';
+$('#swap').onclick = () => {
+  MODE = MODE === 'phone' ? 'email' : 'phone'; $('#lmsg').textContent = ''; clearInterval(TIMER);
+  ['#f1', '#f2', '#e1', '#e2'].forEach(s => $(s).classList.add('hide'));
+  $(MODE === 'phone' ? '#f1' : '#e1').classList.remove('hide');
+  $('#swap').textContent = MODE === 'phone' ? 'No access to your phone? Sign in with an email code instead' : 'Sign in with a text code instead';
+};
+async function sendEmailCode() {
+  const m = $('#lmsg'); m.className = 'msg'; m.textContent = 'Sending...';
+  try {
+    const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ op: 'send_email_code', email: EMAIL }) }).then(r => r.json());
+    $('#e1').classList.add('hide'); $('#e2').classList.remove('hide'); $('#ego').disabled = false; $('#ecd').value = ''; $('#ecd').focus();
+    m.textContent = 'If that email is on a One Web account, a code is on its way. Check your spam folder too.';
+    let left = r.ttl || 120; clearInterval(TIMER);
+    const tick = () => { const t = $('#timer');
+      if (left <= 0) { clearInterval(TIMER); t.textContent = 'This code expired. Tap "Send a new code".'; $('#ego').disabled = true; return; }
+      t.textContent = `Code expires in ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`; left--; };
+    tick(); TIMER = setInterval(tick, 1000);
+  } catch (e) { m.className = 'msg bad'; m.textContent = 'Could not reach the server. Try again.'; }
+}
+$('#e1').onsubmit = e => { e.preventDefault(); EMAIL = $('#em').value.trim();
+  if (!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(EMAIL)) { const m = $('#lmsg'); m.className = 'msg bad'; m.textContent = 'Enter a valid email.'; return; }
+  sendEmailCode(); };
+$('#eagain').onclick = sendEmailCode;
+$('#e2').onsubmit = async e => {
+  e.preventDefault(); const m = $('#lmsg'); m.className = 'msg'; m.textContent = 'Checking...';
+  try {
+    const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ op: 'verify_email', email: EMAIL, code: $('#ecd').value }) }).then(r => r.json());
+    if (!r.ok) { m.className = 'msg bad'; m.textContent = r.error === 'wrong' ? 'That code is not right. Check the email and try again.' : 'That code expired. Tap "Send a new code".'; return; }
+    clearInterval(TIMER); TOKEN = r.token; ls.set('ow_portal', TOKEN, $('#erem').checked); m.textContent = '';
+    await load();
+  } catch (err) { m.className = 'msg bad'; m.textContent = 'Could not reach the server. Try again.'; }
+};
+
 /* ---------- app ---------- */
 const TABS = [['site', 'Website'], ['photos', 'Photos'], ['bookings', 'Bookings'], ['domain', 'Domain'], ['billing', 'Billing']];
 async function load() {
@@ -187,6 +234,7 @@ function site() {
   <div class="card"><h2>Options</h2>
     <label class="toggle"><span>Online booking<small>Customers can request a time on your site</small></span><input type="checkbox" name="bookingOn" ${f.bookingOn ? 'checked' : ''}></label>
     <label style="margin-top:6px">Text booking alerts to<input name="alertPhone" type="tel" value="${esc(f.alertPhone)}"></label>
+    <label>Backup login email <span class="note">(for when you can't get texts)</span><input name="email" type="email" value="${esc(f.email)}" autocomplete="email"></label>
     <label class="toggle"><span>Show Google reviews</span><input type="checkbox" name="showReviews" ${f.hideReviews ? '' : 'checked'}></label>
     <label class="toggle"><span>We're licensed &amp; insured<small>Only check this if it's true. It will show on your site.</small></span><input type="checkbox" name="licensed" ${f.licensed ? 'checked' : ''}></label>
   </div>
@@ -199,7 +247,11 @@ const hourRow = (d, t) => `<div class="h"><input name="hd" value="${esc(d)}" pla
 function photos() {
   const p = D.photos || [];
   return `<div class="card"><h2>Photos</h2>
-    <p class="note" style="margin-top:-6px">To add photos or your logo, text them to <b>${esc(D.textNumber || 'your One Web number')}</b>. They show up here and on your site within a minute. The first photo is the big one at the top.</p>
+    <p class="note" style="margin-top:-6px">Add up to 12 photos of your work. The first photo is the big one at the top of your site. You can also text photos to <b>${esc(D.textNumber || 'your One Web number')}</b>.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin:0 0 18px">
+      <label class="btn btn-gold" style="margin:0;color:#0a0a0a">Upload photos<input type="file" id="upp" accept="image/*" multiple class="hide"></label>
+      <label class="btn btn-line" style="margin:0">${D.logo ? 'Replace logo' : 'Upload logo'}<input type="file" id="upl" accept="image/*" class="hide"></label>
+    </div>
     ${p.length ? `<div class="photos">${p.map((u, i) => `<div class="ph">${i === 0 ? '<span class="pill ok main">Main photo</span>' : ''}<img src="${esc(u)}" alt="Photo ${i + 1}" loading="lazy">
       <div class="act">${i ? `<button type="button" data-main="${i}">Make main</button>` : '<span></span>'}<button type="button" data-rm="${i}">Remove</button></div></div>`).join('')}</div>` : '<p class="note">No photos yet.</p>'}
     ${D.logo ? `<h2 style="margin-top:22px">Logo</h2><div class="ph" style="max-width:180px;aspect-ratio:1"><img src="${esc(D.logo)}" alt="Logo" style="object-fit:contain"><div class="act"><span></span><button type="button" id="rmlogo">Remove</button></div></div>` : ''}
@@ -233,6 +285,38 @@ function billing() {
     <p class="note" style="margin-top:18px">See our <a href="/refund.html">refund policy</a> and <a href="/agreement.html">client agreement</a>.</p></div>`;
 }
 
+/* resize in the browser so uploads are small and fast */
+function shrink(file, kind) {
+  return new Promise((res, rej) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      const max = kind === 'logo' ? 800 : 1800, k = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      const png = kind === 'logo' && /png|webp|svg/.test(file.type);
+      const x = c.getContext('2d'); if (!png) { x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); }
+      x.drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+      const type = png ? 'image/png' : 'image/jpeg';
+      res({ type, data: c.toDataURL(type, 0.85).split(',')[1] });
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('img')); };
+    img.src = url;
+  });
+}
+async function uploadFiles(files, kind) {
+  const m = $('#pmsg'); if (!files.length) return;
+  const room = kind === 'logo' ? 1 : 12 - (D.photos || []).length;
+  if (room <= 0) { say(m, 'You have 12 photos already. Remove one first.'); return; }
+  files = files.filter(f => /^image\//.test(f.type)).slice(0, room);
+  let done = 0, failed = 0;
+  for (const f of files) {
+    m.className = 'msg'; m.textContent = `Uploading ${done + failed + 1} of ${files.length}...`;
+    try { const s = await shrink(f, kind); const r = await api({ op: 'upload', kind, ctype: s.type, data: s.data }); if (r.ok) done++; else failed++; }
+    catch (e) { if (e.message === 'auth') return; failed++; }
+  }
+  try { D = await api({ op: 'me' }); render(); } catch (e) {}
+  say($('#pmsg'), failed ? `Uploaded ${done}, ${failed} failed. Try those again.` : `Uploaded ${done}. They're on your site now.`, !failed);
+}
+
 async function domainCheck() {
   const el = $('#dst'); if (!el) return;
   const q = async (name, type) => { const r = await fetch(`https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(name)}&type=${type}`, { headers: { accept: 'application/dns-json' } }); return (await r.json()).Answer || []; };
@@ -260,6 +344,7 @@ const BIND = {
         brandColor: F.useColor.checked ? F.brandColor.value : '', theme: F.theme.value, fonts: F.fonts.value,
         bookingOn: F.bookingOn.checked, hideReviews: !F.showReviews.checked, licensed: F.licensed.checked };
       if (F.alertPhone.value.trim()) fields.alertPhone = F.alertPhone.value;
+      if (F.email.value.trim()) fields.email = F.email.value;
       btn.disabled = true; m.className = 'msg'; m.textContent = 'Saving...';
       try { D = await api({ op: 'save', fields }); render(); say($('#smsg'), 'Saved. Your site updates within a few minutes.', true); }
       catch (err) { if (err.message !== 'auth') { say(m, 'Could not save. Try again.'); btn.disabled = false; } }
@@ -271,6 +356,8 @@ const BIND = {
     document.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { if (!confirm('Remove this photo from your site?')) return; const p = D.photos.slice(); p.splice(+b.dataset.rm, 1); send({ photos: p }); });
     document.querySelectorAll('[data-main]').forEach(b => b.onclick = () => { const p = D.photos.slice(); const [x] = p.splice(+b.dataset.main, 1); p.unshift(x); send({ photos: p }); });
     const rl = $('#rmlogo'); if (rl) rl.onclick = () => { if (confirm('Remove your logo from the site?')) send({ logo: '' }); };
+    $('#upp').onchange = e => uploadFiles([...e.target.files], 'photo');
+    $('#upl').onchange = e => uploadFiles([...e.target.files].slice(0, 1), 'logo');
   },
   bookings() {
     document.querySelectorAll('[data-bs]').forEach(b => b.onclick = async () => {
