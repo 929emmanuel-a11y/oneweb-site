@@ -271,12 +271,9 @@ function voice(){
       ${ready ? '' : '<p class="note">Add your Telnyx numbers and the Call Control App ID, save, then switch it on.</p>'}
       <div class="field"><label>Calls per day</label><input type="number" min="0" max="5000" data-d="dailyTarget" data-num value="${d.dailyTarget}"><p class="note">Start at 50, then ramp up.</p></div>
       <div class="field"><label>Max calls per number per day</label><input type="number" min="10" max="300" data-d="perNumberCap" data-num value="${d.perNumberCap}"></div>
-      <div class="grid g2" style="gap:12px">
-        <div class="field"><label>Start calling (their time)</label><select data-d="startHour" data-num>${[8,9,10,11,12,13,14,15,16,17,18,19,20].map(h => `<option value="${h}" ${d.startHour===h?'selected':''}>${hr(h)}</option>`).join('')}</select></div>
-        <div class="field"><label>Stop calling</label><select data-d="endHour" data-num>${[9,10,11,12,13,14,15,16,17,18,19,20,21].map(h => `<option value="${h}" ${d.endHour===h?'selected':''}>${hr(h)}</option>`).join('')}</select></div>
-      </div>
-      <p class="note">Weekdays only, in each business's own time zone. Federal rules allow 8am to 9pm.</p>
-      <div class="field"><label>If a person picks up</label><select data-d="liveAction"><option value="hangup" ${d.liveAction!=='play'?'selected':''}>Hang up (cheapest)</option><option value="play" ${d.liveAction==='play'?'selected':''}>Play the message anyway</option></select></div>
+      <div class="field"><label>Calling windows (their time)</label><div class="note" style="margin:4px 0 0">8:00–9:30 AM · 12:00–1:30 PM · 5:30–8:00 PM — when businesses rarely answer, so most calls reach voicemail. Best leads (no website, real reviews, high-ticket trades) are called first.</div></div>
+      <p class="note">Weekdays only, in each business's own time zone. Each business is called once. Google Voice numbers are skipped.</p>
+      <div class="field"><label>If a person picks up</label><select data-d="liveAction"><option value="hangup" ${d.liveAction!=='play'&&d.liveAction!=='ai'?'selected':''}>Hang up (cheapest)</option><option value="play" ${d.liveAction==='play'?'selected':''}>Play the message anyway</option><option value="ai" ${d.liveAction==='ai'?'selected':''}>AI agent (Emma) talks to them, max 60s</option></select></div>
     </div>
     <div class="card"><h2>Voicemail message</h2>
       <div class="field"><label>Recording link (MP3 or WAV, under 25 seconds)</label><input type="text" data-d="voicemailUrl" value="${esc(d.voicemailUrl)}" placeholder="https://onewebonline.com/assets/voicemail.mp3"><p class="note">Leave empty to use the built-in robot voice until your recording is ready.</p></div>
