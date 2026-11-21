@@ -108,7 +108,7 @@ const API = 'https://n8n-production-9be3db1c.up.railway.app/webhook/oneweb-api';
 const CHAT = 'https://n8n-production-9be3db1c.up.railway.app/webhook/oneweb-test-chat-b3a761a6';
 const DIAL = 'https://n8n-production-9be3db1c.up.railway.app/webhook/oneweb-dialer-stats';
 let DSTATS = null;
-const TABS = [['overview','Overview'],['convos','Conversations'],['closer','AI Closer'],['pricing','Pricing'],['reviews','Reviews'],['voice','Phone & Dialer'],['test','Test Chat']];
+const TABS = [['overview','Overview'],['convos','Conversations'],['closer','AI Closer'],['pricing','Pricing'],['reviews','Reviews'],['bookings','Bookings'],['results','Results'],['voice','Phone & Dialer'],['test','Test Chat']];
 let AUTH = null, STATE = null, TAB = 'overview', DRAFT = null, SEL = null, DIRTY = false;
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -136,7 +136,7 @@ function nav(){
   $('#nav').innerHTML = h; $('#mnav').innerHTML = h;
   document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { TAB = b.dataset.t; render(); });
 }
-function render(){ nav(); const f = { overview, convos, closer, pricing, reviews, voice, test }[TAB]; $('#main').innerHTML = f(); bind(); }
+function render(){ nav(); const f = { overview, convos, closer, pricing, reviews, bookings, results, voice, test }[TAB]; $('#main').innerHTML = f(); bind(); }
 
 function dialToday(){
   const d = DSTATS || {}, t = d.today || {}, o = (d.outcomes || {})[t.date] || {};
@@ -330,6 +330,53 @@ function reviews(){
   ${list.length ? `<div class="grid g2">${list.map(card).join('')}</div>` : '<div class="card empty">No reviews yet.</div>'}`;
 }
 
+function bookings(){
+  const all = STATE.bookings || [];
+  const up = all.filter(b => b.status === 'booked').sort((a, b) => a.at - b.at);
+  const past = all.filter(b => b.status !== 'booked').sort((a, b) => (b.updated || b.created) - (a.updated || a.created)).slice(0, 30);
+  const their = b => new Intl.DateTimeFormat('en-US', { timeZone: b.tz || 'America/Chicago', weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(b.at));
+  const mine = b => new Intl.DateTimeFormat('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' }).format(new Date(b.at));
+  const days = [...Array(7)].map((_, i) => { const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() + i); return d; });
+  const strip = days.map(d => { const n = up.filter(b => { const x = new Date(b.at); return x >= d && x < new Date(d.getTime() + 864e5); }).length;
+    return `<div class="card kpi" style="margin:0;padding:14px;text-align:center"><span>${d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' })}</span><b style="font-size:28px">${n}</b></div>`; }).join('');
+  const row = b => `<div class="card" style="padding:16px">
+      <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><b>${esc(b.name || b.phone)}</b>${b.city ? ' · ' + esc(b.city) : ''}<br>
+      <span class="note">${their(b)} their time · ${mine(b)} yours · ${esc(b.phone)}</span>${b.note ? `<br><span class="note">“${esc(b.note)}”</span>` : ''}</div>
+      <span class="pill ${b.status === 'done' ? 'won' : b.status === 'booked' ? 'preview_requested' : 'lost'}">${esc(b.status.replace('_', '-'))}</span></div>
+      ${b.status === 'booked' ? `<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center">
+        <button class="btn btn-gold btn-sm" data-bk="${esc(b.id)}" data-bs="done">Done</button>
+        <button class="btn btn-line btn-sm" data-bk="${esc(b.id)}" data-bs="no_show">No-show</button>
+        <button class="btn btn-line btn-sm" data-bk="${esc(b.id)}" data-bs="canceled">Cancel</button>
+        <input type="datetime-local" data-bkt="${esc(b.id)}" style="width:auto;padding:6px 10px"><button class="btn btn-line btn-sm" data-bkm="${esc(b.id)}">Move (your time)</button></div>` : ''}
+    </div>`;
+  return `<h1>Bookings</h1><p class="sub">Only businesses that said they want to see their website. Emma calls them back at the booked time automatically, and Bookkeeper pings you on Telegram.</p>
+  <div class="grid" style="grid-template-columns:repeat(7,1fr);gap:10px;margin-bottom:18px">${strip}</div>
+  <h2 style="margin:8px 0 12px">Upcoming (${up.length})</h2>${up.length ? up.map(row).join('') : '<div class="card empty">No bookings yet.</div>'}
+  ${past.length ? `<h2 style="margin:18px 0 12px">Recent</h2>${past.map(row).join('')}` : ''}`;
+}
+
+function results(){
+  const H = (DSTATS && DSTATS.history) || {}; const ramp = (DSTATS && DSTATS.ramp) || {};
+  const since = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10);
+  const dialsN = {}, dialsT = {};
+  for (const [d, v] of Object.entries(H)) { if (d < since) continue; for (const [k, n] of Object.entries(v.n || {})) dialsN[k] = (dialsN[k] || 0) + n; for (const [k, n] of Object.entries(v.t || {})) dialsT[k] = (dialsT[k] || 0) + n; }
+  const R = STATE.results || { byNumber: {}, byTrade: {} }; const C = STATE.callResults || { week: {}, total: 0 };
+  const table = (dials, rep, label, extra) => { const keys = [...new Set(Object.keys(dials).concat(Object.keys(rep)))].sort((a, b) => (dials[b] || 0) - (dials[a] || 0));
+    if (!keys.length) return '<p class="note">No data yet. Fills in once the dialer is running.</p>';
+    return `<table style="width:100%;border-collapse:collapse;font-size:14px"><tr style="color:var(--mut);text-align:left"><th>${label}</th><th>Dials (7d)</th><th>Texted back</th><th>Reply rate</th><th>Saw site</th><th>Won</th>${extra ? '<th>Cap today</th>' : ''}</tr>
+    ${keys.map(k => { const d = dials[k] || 0, r = rep[k] || {}; const rate = d ? (100 * (r.replied || 0) / d).toFixed(1) + '%' : '—';
+      return `<tr style="border-top:1px solid var(--line)"><td style="padding:8px 0">${esc(k)}</td><td>${d}</td><td>${r.replied || 0}</td><td><b>${rate}</b></td><td>${r.preview || 0}</td><td>${r.won || 0}</td>${extra ? `<td>${ramp[k] ?? '—'}</td>` : ''}</tr>`; }).join('')}</table>`; };
+  const w = C.week || {};
+  return `<h1>Results</h1><p class="sub">Check once a week. Keep what works, change one thing that doesn't. Reply rate is the number that matters most.</p>
+  <div class="grid g4 kpis">
+    <div class="card kpi"><span>Emma calls (7d)</span><b>${C.total || 0}</b></div>
+    <div class="card kpi"><span>Wanted to see site</span><b>${w.wants_to_see_site || 0}</b></div>
+    <div class="card kpi"><span>Busy, call back</span><b>${w.busy_call_back || 0}</b></div>
+    <div class="card kpi"><span>Not interested</span><b>${w.not_interested || 0}</b></div></div>
+  <div class="card"><h2>By trade</h2>${table(dialsT, R.byTrade || {}, 'Trade')}</div>
+  <div class="card"><h2>By phone number</h2><p class="note">Cap today = warm-up limit (starts at 20/day, +10 each week). A number with a much lower reply rate than the rest may be getting flagged as spam: rest it.</p>${table(dialsN, R.byNumber || {}, 'Number', true)}</div>`;
+}
+
 const savebar = () => `<div class="savebar"><span id="savemsg">${DIRTY ? 'Unsaved changes' : ''}</span><button class="btn btn-line" id="discard" ${DIRTY?'':'disabled'}>Discard</button><button class="btn btn-gold" id="save">Save settings</button></div>`;
 function markDirty(){ DIRTY = true; const m = $('#savemsg'); if (m) m.textContent = 'Unsaved changes'; const d = $('#discard'); if (d) d.disabled = false; ladderPreview(); }
 function ladderPreview(){ const el = $('#ladder'); if (!el) return; const s = DRAFT; const steps = [s.listPrice, s.commitPrice].concat(s.discountSteps||[]).filter(n => n >= s.floorPrice); el.textContent = steps.map(n => '$'+n).join(' → ') + `  (floor $${s.floorPrice})`; }
@@ -356,6 +403,8 @@ function bind(){
   const disc = $('#discard'); if (disc) disc.onclick = () => { DIRTY = false; DRAFT = JSON.parse(JSON.stringify(STATE.settings)); render(); };
   document.querySelectorAll('[data-c]').forEach(el => el.onclick = () => { SEL = el.dataset.c; render(); });
   document.querySelectorAll('[data-rv]').forEach(el => el.onclick = () => load('review_set', { id: el.dataset.rv, status: el.dataset.st }));
+  document.querySelectorAll('[data-bk]').forEach(el => el.onclick = () => load('booking_set', { id: el.dataset.bk, status: el.dataset.bs }));
+  document.querySelectorAll('[data-bkm]').forEach(el => el.onclick = () => { const i = document.querySelector(`[data-bkt="${CSS.escape(el.dataset.bkm)}"]`); const t = i && i.value ? new Date(i.value).getTime() : 0; if (t > Date.now()) load('booking_set', { id: el.dataset.bkm, at: t }); else if (i) i.focus(); });
   const ct = $('#cleartests'); if (ct) ct.onclick = () => load('clear_tests');
   const ts = $('#tsend'); if (ts) { const send = () => testSend(); ts.onclick = send; $('#tmsg').onkeydown = e => { if (e.key === 'Enter') send(); }; }
   const tr = $('#treset'); if (tr) tr.onclick = () => testSend(true);
