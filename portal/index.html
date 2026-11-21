@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Client Portal | One Web</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0a0a;--bg2:#131312;--bg3:#1a1a19;--line:rgba(237,232,224,.12);--txt:#ede8e0;--mut:#9b958c;--gold:#c9a86a;--gold2:#e6cf9e;--ok:#7fbf8e;--bad:#e08a7a;
+--serif:"Instrument Serif",Georgia,serif;--sans:"Inter",system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.55 var(--sans);-webkit-font-smoothing:antialiased}
+a{color:var(--gold2)}
+.wrap{max-width:860px;margin:0 auto;padding:0 16px}
+header{border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(10,10,10,.85);backdrop-filter:blur(12px);z-index:5}
+header .wrap{display:flex;align-items:center;justify-content:space-between;height:64px;gap:12px}
+.brand{font-family:var(--serif);font-size:24px;text-decoration:none;color:var(--txt)}.brand span{color:var(--gold)}
+h1{font-family:var(--serif);font-weight:400;font-size:clamp(34px,6vw,52px);line-height:1.05;margin:36px 0 8px}
+h2{font-family:var(--serif);font-weight:400;font-size:28px;margin:0 0 14px}
+.sub{color:var(--mut);margin:0 0 24px}
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:18px;padding:22px;margin-bottom:16px}
+label{display:block;font-size:13px;font-weight:600;color:var(--mut);margin:0 0 14px}
+input,select,textarea{display:block;width:100%;margin-top:6px;font:inherit;font-size:16px;color:var(--txt);background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:11px 13px}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--gold);outline-offset:1px}
+input[type=color]{height:46px;padding:4px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;cursor:pointer;padding:12px 22px;border-radius:999px;font:500 14px var(--sans);text-decoration:none}
+.btn-gold{background:var(--gold);color:#0a0a0a}.btn-gold:hover{background:var(--gold2)}
+.btn-line{background:transparent;border:1px solid var(--line);color:var(--txt)}.btn-line:hover{border-color:var(--gold)}
+.btn-sm{padding:8px 14px;font-size:13px}
+.btn:disabled{opacity:.5;cursor:default}
+.tabs{display:flex;gap:6px;overflow-x:auto;margin:0 0 22px;padding-bottom:2px}
+.tab{background:none;border:1px solid var(--line);color:var(--mut);padding:9px 16px;border-radius:999px;font:500 14px var(--sans);cursor:pointer;white-space:nowrap}
+.tab.on{background:var(--gold);border-color:var(--gold);color:#0a0a0a}
+.toggle{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 0;border-top:1px solid var(--line);color:var(--txt);font-weight:500;font-size:15px;margin:0}
+.toggle:first-child{border-top:0}
+.toggle small{display:block;color:var(--mut);font-weight:400;font-size:13px}
+.toggle input{width:44px;height:24px;margin:0;flex:none;accent-color:var(--gold)}
+.note{color:var(--mut);font-size:14px}
+.msg{min-height:22px;font-size:14px;margin:10px 0 0}
+.msg.ok{color:var(--ok)}.msg.bad{color:var(--bad)}
+.pill{display:inline-block;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--bg3);color:var(--mut)}
+.pill.ok{background:rgba(127,191,142,.15);color:var(--ok)}.pill.new{background:rgba(201,168,106,.18);color:var(--gold2)}.pill.bad{background:rgba(224,138,122,.15);color:var(--bad)}
+.photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.ph{position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:var(--bg3);aspect-ratio:4/3}
+.ph img{width:100%;height:100%;object-fit:cover;display:block}
+.ph .act{position:absolute;left:6px;right:6px;bottom:6px;display:flex;gap:6px;justify-content:space-between}
+.ph .act button{background:rgba(10,10,10,.8);color:var(--txt);border:1px solid var(--line);border-radius:999px;padding:5px 10px;font:500 12px var(--sans);cursor:pointer}
+.ph .main{position:absolute;top:6px;left:6px}
+.svcs .s{display:flex;gap:8px;margin-bottom:8px}.svcs .s input{margin:0}
+.svcs .s button{flex:none}
+.hours .h{display:grid;grid-template-columns:1fr 1.4fr auto;gap:8px;margin-bottom:8px}.hours .h input{margin:0}
+.bk{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.bkact{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.login{max-width:420px;margin:0 auto}
+.hide{display:none!important}
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.links{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:22px}
+footer{color:var(--mut);font-size:13px;padding:40px 0;border-top:1px solid var(--line);margin-top:40px}
+footer a{color:var(--mut)}
+@media (max-width:560px){.row{grid-template-columns:1fr}.hours .h{grid-template-columns:1fr 1fr}.hours .h button{grid-column:1/-1}h1{margin-top:26px}}
+</style>
+</head>
+<body>
+<header><div class="wrap"><a class="brand" href="/">One Web<span>.</span></a><button id="out" class="btn btn-line btn-sm hide" type="button">Log out</button></div></header>
+
+<main class="wrap">
+  <!-- login -->
+  <section id="login" class="login hide">
+    <h1>Client portal</h1>
+    <p class="sub">Log in with the phone number on your account. We'll text you a 6-digit code.</p>
+    <div class="card">
+      <form id="f1">
+        <label>Phone number<input id="ph" type="tel" inputmode="tel" autocomplete="tel" placeholder="(555) 123-4567" required></label>
+        <button class="btn btn-gold" type="submit">Text me a code</button>
+      </form>
+      <form id="f2" class="hide">
+        <label>6-digit code<input id="cd" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456" required></label>
+        <label class="toggle" style="border:0;padding:0 0 14px"><span>Keep me logged in on this device</span><input id="rem" type="checkbox" checked></label>
+        <button class="btn btn-gold" type="submit">Log in</button>
+        <button class="btn btn-line" type="button" id="back">Use another number</button>
+      </form>
+      <p class="msg" id="lmsg" role="status" aria-live="polite"></p>
+    </div>
+    <p class="note">Not a client yet? <a href="/">See what One Web does</a>.</p>
+  </section>
+
+  <!-- app -->
+  <section id="app" class="hide">
+    <div class="top"><div><h1 id="biz">Your website</h1><p class="sub" id="status"></p></div></div>
+    <div class="links" id="links"></div>
+    <nav class="tabs" id="tabs" aria-label="Portal sections"></nav>
+    <div id="view"></div>
+  </section>
+</main>
+<footer><div class="wrap">One Web is a brand of Dolyn · <a href="/privacy.html">Privacy</a> · <a href="/terms.html">Terms</a> · <a href="/agreement.html">Client agreement</a> · <a href="/refund.html">Refunds</a></div></footer>
+
+<script>
+const API = 'https://n8n-production-9be3db1c.up.railway.app/webhook/oneweb-portal';
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const ls = { get(k) { try { return sessionStorage.getItem(k) || localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v, keep) { try { (keep ? localStorage : sessionStorage).setItem(k, v); } catch (e) {} },
+  del(k) { try { sessionStorage.removeItem(k); localStorage.removeItem(k); } catch (e) {} } };
+let TOKEN = ls.get('ow_portal'), D = null, TAB = 'site', PHONE = '';
+try { TAB = localStorage.getItem('ow_portal_tab') || 'site'; } catch (e) {}
+
+async function api(body) {
+  const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({ token: TOKEN }, body)) });
+  if (!r.ok) throw new Error('server');
+  const j = await r.json();
+  if (j.error === 'auth') { logout(); throw new Error('auth'); }
+  return j;
+}
+function showLogin() { $('#login').classList.remove('hide'); $('#app').classList.add('hide'); $('#out').classList.add('hide'); }
+function logout() { if (TOKEN) fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ op: 'logout', token: TOKEN }) }).catch(() => {}); TOKEN = null; ls.del('ow_portal'); showLogin(); }
+
+/* ---------- login ---------- */
+$('#f1').onsubmit = async e => {
+  e.preventDefault(); const m = $('#lmsg'); PHONE = $('#ph').value;
+  if (PHONE.replace(/\D/g, '').length < 10) { m.className = 'msg bad'; m.textContent = 'Enter a 10-digit phone number.'; return; }
+  m.className = 'msg'; m.textContent = 'Sending...';
+  try { await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ op: 'send_code', phone: PHONE }) });
+    $('#f1').classList.add('hide'); $('#f2').classList.remove('hide'); $('#cd').focus();
+    m.textContent = 'If that number is on a One Web account, a code is on its way.';
+  } catch (err) { m.className = 'msg bad'; m.textContent = 'Could not reach the server. Try again.'; }
+};
+$('#back').onclick = () => { $('#f2').classList.add('hide'); $('#f1').classList.remove('hide'); $('#lmsg').textContent = ''; };
+$('#f2').onsubmit = async e => {
+  e.preventDefault(); const m = $('#lmsg'); m.className = 'msg'; m.textContent = 'Checking...';
+  try {
+    const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ op: 'verify', phone: PHONE, code: $('#cd').value }) }).then(r => r.json());
+    if (!r.ok) { m.className = 'msg bad'; m.textContent = r.error === 'wrong' ? 'That code is not right. Check the text and try again.' : 'That code expired. Use another number or ask for a new code.'; return; }
+    TOKEN = r.token; ls.set('ow_portal', TOKEN, $('#rem').checked); $('#cd').value = ''; m.textContent = '';
+    await load();
+  } catch (err) { m.className = 'msg bad'; m.textContent = 'Could not reach the server. Try again.'; }
+};
+$('#out').onclick = logout;
+
+/* ---------- app ---------- */
+const TABS = [['site', 'Website'], ['photos', 'Photos'], ['bookings', 'Bookings'], ['domain', 'Domain'], ['billing', 'Billing']];
+async function load() {
+  D = await api({ op: 'me' });
+  $('#login').classList.add('hide'); $('#app').classList.remove('hide'); $('#out').classList.remove('hide');
+  render();
+}
+function render() {
+  const f = D.fields;
+  $('#biz').textContent = f.name || 'Your website';
+  $('#status').innerHTML = D.live ? `<span class="pill ok">Live</span> &nbsp;${esc(D.site.replace(/^https:\/\//, ''))}` : `<span class="pill new">Not live yet</span> &nbsp;Text DONE to ${esc(D.textNumber || 'us')} when you're ready to publish.`;
+  $('#links').innerHTML = `<a class="btn btn-line btn-sm" href="${esc(D.site)}" target="_blank" rel="noopener">View my site</a>`;
+  const nb = (D.bookings || []).filter(b => !b.st).length;
+  $('#tabs').innerHTML = TABS.map(([k, l]) => `<button class="tab ${TAB === k ? 'on' : ''}" data-t="${k}" type="button">${l}${k === 'bookings' && nb ? ` (${nb})` : ''}</button>`).join('');
+  document.querySelectorAll('.tab').forEach(b => b.onclick = () => { TAB = b.dataset.t; try { localStorage.setItem('ow_portal_tab', TAB); } catch (e) {} render(); });
+  $('#view').innerHTML = ({ site, photos, bookings, domain, billing }[TAB] || site)();
+  (BIND[TAB] || (() => {}))();
+}
+const say = (el, t, ok) => { el.className = 'msg ' + (ok ? 'ok' : 'bad'); el.textContent = t; };
+
+function site() {
+  const f = D.fields; const hrs = Object.entries(f.hours || {});
+  return `<form id="sf">
+  <div class="card"><h2>Business info</h2>
+    <label>Business name<input name="name" value="${esc(f.name)}" maxlength="60"></label>
+    <div class="row"><label>Phone shown on site<input name="phone" type="tel" value="${esc(f.phone)}"></label>
+    <label>Address<input name="address" value="${esc(f.address)}" maxlength="120"></label></div>
+  </div>
+  <div class="card"><h2>Top of your site</h2>
+    <label>Headline <span class="note">(leave empty for our default)</span><input name="headline" value="${esc(f.headline)}" maxlength="90"></label>
+    <label>Short description<textarea name="lead" rows="2" maxlength="240">${esc(f.lead)}</textarea></label>
+  </div>
+  <div class="card"><h2>Services</h2><p class="note" style="margin-top:-6px">Up to 6. Leave all empty to use the usual services for your trade.</p>
+    <div class="svcs" id="svcs">${[...(f.services || []), '', '', '', '', '', ''].slice(0, 6).map(s => `<div class="s"><input name="svc" value="${esc(s)}" maxlength="50" aria-label="Service"></div>`).join('')}</div>
+  </div>
+  <div class="card"><h2>Hours</h2>
+    <div class="hours" id="hrs">${(hrs.length ? hrs : [['Mon-Fri', ''], ['Sat', '']]).map(([d, t]) => hourRow(d, t)).join('')}</div>
+    <button class="btn btn-line btn-sm" type="button" id="addh">Add a row</button>
+  </div>
+  <div class="card"><h2>Look</h2>
+    <div class="row"><label>Brand color<input name="brandColor" type="color" value="${esc(f.brandColor || '#c9a86a')}"></label>
+    <label>Background<select name="theme"><option value="">Our pick for your trade</option>${[['dark', 'Dark'], ['light', 'Light'], ['warm', 'Warm']].map(([v, l]) => `<option value="${v}" ${f.theme === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
+    <label>Font style<select name="fonts"><option value="">Our pick for your trade</option>${[['serif', 'Classic'], ['bold', 'Bold'], ['modern', 'Modern']].map(([v, l]) => `<option value="${v}" ${f.fonts === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+    <label class="toggle"><span>Keep my brand color<small>Uncheck to go back to the default color</small></span><input type="checkbox" name="useColor" ${f.brandColor ? 'checked' : ''}></label>
+  </div>
+  <div class="card"><h2>Options</h2>
+    <label class="toggle"><span>Online booking<small>Customers can request a time on your site</small></span><input type="checkbox" name="bookingOn" ${f.bookingOn ? 'checked' : ''}></label>
+    <label style="margin-top:6px">Text booking alerts to<input name="alertPhone" type="tel" value="${esc(f.alertPhone)}"></label>
+    <label class="toggle"><span>Show Google reviews</span><input type="checkbox" name="showReviews" ${f.hideReviews ? '' : 'checked'}></label>
+    <label class="toggle"><span>We're licensed &amp; insured<small>Only check this if it's true. It will show on your site.</small></span><input type="checkbox" name="licensed" ${f.licensed ? 'checked' : ''}></label>
+  </div>
+  <button class="btn btn-gold" type="submit" id="save">Save changes</button>
+  <p class="msg" id="smsg" role="status" aria-live="polite"></p>
+  </form>`;
+}
+const hourRow = (d, t) => `<div class="h"><input name="hd" value="${esc(d)}" placeholder="Mon-Fri" aria-label="Days"><input name="ht" value="${esc(t)}" placeholder="8am-6pm" aria-label="Hours"><button class="btn btn-line btn-sm" type="button" data-rmh>Remove</button></div>`;
+
+function photos() {
+  const p = D.photos || [];
+  return `<div class="card"><h2>Photos</h2>
+    <p class="note" style="margin-top:-6px">To add photos or your logo, text them to <b>${esc(D.textNumber || 'your One Web number')}</b>. They show up here and on your site within a minute. The first photo is the big one at the top.</p>
+    ${p.length ? `<div class="photos">${p.map((u, i) => `<div class="ph">${i === 0 ? '<span class="pill ok main">Main photo</span>' : ''}<img src="${esc(u)}" alt="Photo ${i + 1}" loading="lazy">
+      <div class="act">${i ? `<button type="button" data-main="${i}">Make main</button>` : '<span></span>'}<button type="button" data-rm="${i}">Remove</button></div></div>`).join('')}</div>` : '<p class="note">No photos yet.</p>'}
+    ${D.logo ? `<h2 style="margin-top:22px">Logo</h2><div class="ph" style="max-width:180px;aspect-ratio:1"><img src="${esc(D.logo)}" alt="Logo" style="object-fit:contain"><div class="act"><span></span><button type="button" id="rmlogo">Remove</button></div></div>` : ''}
+    <p class="msg" id="pmsg" role="status" aria-live="polite"></p></div>`;
+}
+function bookings() {
+  const b = D.bookings || [];
+  return `<p class="sub">Requests customers sent through your website. You also get a text for each one.</p>
+  ${b.length ? b.map(x => `<div class="card"><div class="bk"><div><b>${esc(x.name)}</b> · <a href="tel:${esc(x.phone)}">${esc(x.phone)}</a><br>
+    <span class="note">${x.service ? esc(x.service) + ' · ' : ''}${(x.date || x.time) ? 'wants ' + esc([x.date, x.time].filter(Boolean).join(', ')) + ' · ' : ''}sent ${new Date(x.at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
+    ${x.note ? `<br><span class="note">“${esc(x.note)}”</span>` : ''}</div><span class="pill ${x.st ? 'ok' : 'new'}">${x.st ? esc(x.st) : 'new'}</span></div>
+    <div class="bkact">${x.st ? '' : `<button class="btn btn-gold btn-sm" data-bs="confirmed" data-at="${x.at}">Confirmed</button><button class="btn btn-line btn-sm" data-bs="handled" data-at="${x.at}">Handled</button>`}
+    <a class="btn btn-line btn-sm" href="sms:${esc(x.phone)}">Text them</a><button class="btn btn-line btn-sm" data-bs="delete" data-at="${x.at}">Delete</button></div></div>`).join('')
+  : `<div class="card note">${D.fields.bookingOn ? 'No booking requests yet. They will show up here.' : 'Online booking is off. Turn it on in the Website tab.'}</div>`}`;
+}
+function domain() {
+  if (!D.domain) return `<div class="card"><h2>Your own address</h2><p>Your site is at <b>${esc(D.site.replace(/^https:\/\//, ''))}</b>.</p>
+    <p class="note">Want your own address like yourbusiness.com? Text the domain name to ${esc(D.textNumber || 'us')} and we'll connect it. If you don't own one yet, buy it at any registrar (GoDaddy, Namecheap, Cloudflare) first.</p></div>`;
+  return `<div class="card"><h2>${esc(D.domain)}</h2><p id="dst"><span class="pill">Checking...</span></p>
+    <p class="note">At the company where you bought <b>${esc(D.domain)}</b>, these settings must be in place:</p>
+    <p class="note">1) A <b>CNAME</b> record. Name: <b>www</b>. Value: <b>sites.onewebonline.com</b><br>2) Forwarding from <b>${esc(D.domain)}</b> to <b>https://www.${esc(D.domain)}</b></p>
+    <p class="note">Changes can take a few hours to show up. Stuck? Text ${esc(D.textNumber || 'us')} the name of the company you bought it from.</p>
+    <button class="btn btn-line btn-sm" type="button" id="recheck">Check again</button></div>`;
+}
+function billing() {
+  return `<div class="card"><h2>Billing</h2>
+    <p class="note">Update your card, download invoices and receipts, or cancel hosting. This opens a secure Stripe page.</p>
+    <button class="btn btn-gold" type="button" id="bill" ${D.billing ? '' : 'disabled'}>Manage billing</button>
+    ${D.billing ? '' : '<p class="note">Billing details aren\'t linked to this site yet. Text us and we\'ll send your receipt.</p>'}
+    <p class="msg" id="bmsg" role="status" aria-live="polite"></p>
+    <p class="note" style="margin-top:18px">See our <a href="/refund.html">refund policy</a> and <a href="/agreement.html">client agreement</a>.</p></div>`;
+}
+
+async function domainCheck() {
+  const el = $('#dst'); if (!el) return;
+  const q = async (name, type) => { const r = await fetch(`https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(name)}&type=${type}`, { headers: { accept: 'application/dns-json' } }); return (await r.json()).Answer || []; };
+  try {
+    const c = await q('www.' + D.domain, 'CNAME');
+    const pointed = c.some(a => /onewebonline\.com\.?$/i.test(a.data));
+    let loads = false;
+    if (pointed) { try { await fetch('https://www.' + D.domain + '/robots.txt', { mode: 'no-cors', cache: 'no-store' }); loads = true; } catch (e) {} }
+    el.innerHTML = pointed && loads ? '<span class="pill ok">Connected</span> Your site is live at <a href="https://www.' + esc(D.domain) + '" target="_blank" rel="noopener">www.' + esc(D.domain) + '</a>'
+      : pointed ? '<span class="pill new">Almost there</span> Your DNS is set. The secure certificate is being issued, usually within an hour.'
+      : '<span class="pill bad">Not connected yet</span> The CNAME record below is missing or not showing up yet.';
+  } catch (e) { el.innerHTML = '<span class="pill">Could not check right now</span>'; }
+}
+
+const BIND = {
+  site() {
+    $('#addh').onclick = () => { $('#hrs').insertAdjacentHTML('beforeend', hourRow('', '')); bindRm(); };
+    const bindRm = () => document.querySelectorAll('[data-rmh]').forEach(b => b.onclick = () => b.parentNode.remove());
+    bindRm();
+    $('#sf').onsubmit = async e => {
+      e.preventDefault(); const F = e.target, m = $('#smsg'), btn = $('#save');
+      const hours = {}; document.querySelectorAll('#hrs .h').forEach(r => { const d = r.querySelector('[name=hd]').value.trim(), t = r.querySelector('[name=ht]').value.trim(); if (d && t) hours[d] = t; });
+      const fields = { name: F.name.value, phone: F.phone.value, address: F.address.value, headline: F.headline.value, lead: F.lead.value,
+        services: [...F.querySelectorAll('[name=svc]')].map(i => i.value.trim()).filter(Boolean), hours,
+        brandColor: F.useColor.checked ? F.brandColor.value : '', theme: F.theme.value, fonts: F.fonts.value,
+        bookingOn: F.bookingOn.checked, hideReviews: !F.showReviews.checked, licensed: F.licensed.checked };
+      if (F.alertPhone.value.trim()) fields.alertPhone = F.alertPhone.value;
+      btn.disabled = true; m.className = 'msg'; m.textContent = 'Saving...';
+      try { D = await api({ op: 'save', fields }); render(); say($('#smsg'), 'Saved. Your site updates within a few minutes.', true); }
+      catch (err) { if (err.message !== 'auth') { say(m, 'Could not save. Try again.'); btn.disabled = false; } }
+    };
+    $('#sf').addEventListener('input', e => { if (e.target.name === 'brandColor') e.target.form.useColor.checked = true; });
+  },
+  photos() {
+    const send = async body => { const m = $('#pmsg'); m.className = 'msg'; m.textContent = 'Saving...'; try { D = await api(Object.assign({ op: 'photos' }, body)); render(); say($('#pmsg'), 'Saved.', true); } catch (e) { if (e.message !== 'auth') say(m, 'Could not save. Try again.'); } };
+    document.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { if (!confirm('Remove this photo from your site?')) return; const p = D.photos.slice(); p.splice(+b.dataset.rm, 1); send({ photos: p }); });
+    document.querySelectorAll('[data-main]').forEach(b => b.onclick = () => { const p = D.photos.slice(); const [x] = p.splice(+b.dataset.main, 1); p.unshift(x); send({ photos: p }); });
+    const rl = $('#rmlogo'); if (rl) rl.onclick = () => { if (confirm('Remove your logo from the site?')) send({ logo: '' }); };
+  },
+  bookings() {
+    document.querySelectorAll('[data-bs]').forEach(b => b.onclick = async () => {
+      if (b.dataset.bs === 'delete' && !confirm('Delete this booking request?')) return;
+      b.disabled = true; try { D = await api({ op: 'booking_set', at: Number(b.dataset.at), status: b.dataset.bs }); render(); } catch (e) { b.disabled = false; }
+    });
+  },
+  domain() { domainCheck(); const r = $('#recheck'); if (r) r.onclick = domainCheck; },
+  billing() {
+    const b = $('#bill'); if (!b) return;
+    b.onclick = async () => { const m = $('#bmsg'); b.disabled = true; m.className = 'msg'; m.textContent = 'Opening Stripe...';
+      try { const r = await api({ op: 'billing' }); if (r.url) location.href = r.url; else { say(m, 'Billing is not available right now. Text us and we will help.'); b.disabled = false; } }
+      catch (e) { if (e.message !== 'auth') { say(m, 'Could not open billing. Try again.'); b.disabled = false; } } };
+  },
+};
+
+(async () => { if (!TOKEN) return showLogin(); try { await load(); } catch (e) { if (e.message !== 'auth') { showLogin(); say($('#lmsg'), 'Could not reach the server. Refresh to try again.'); } } })();
+</script>
+</body>
+</html>
