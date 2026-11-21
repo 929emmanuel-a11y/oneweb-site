@@ -391,7 +391,27 @@ function results(){
     <div class="card kpi"><span>Busy, call back</span><b>${w.busy_call_back || 0}</b></div>
     <div class="card kpi"><span>Not interested</span><b>${w.not_interested || 0}</b></div></div>
   <div class="card"><h2>By trade</h2>${table(dialsT, R.byTrade || {}, 'Trade')}</div>
-  <div class="card"><h2>By phone number</h2><p class="note">Cap today = warm-up limit (starts at 20/day, +10 each week). A number with a much lower reply rate than the rest may be getting flagged as spam: rest it.</p>${table(dialsN, R.byNumber || {}, 'Number', true)}</div>`;
+  <div class="card"><h2>By phone number</h2><p class="note">Cap today = warm-up limit (starts at 20/day, +10 each week). A number with a much lower reply rate than the rest may be getting flagged as spam: rest it.</p>${table(dialsN, R.byNumber || {}, 'Number', true)}</div>
+  ${callsList()}`;
+}
+
+/* Emma's calls: outcome + full transcript of what each side said */
+let OPEN_T = null, T_CACHE = {};
+function callsList(){
+  const calls = (STATE.calls || []).slice(0, 50);
+  const label = { wants_to_see_site: 'Wants to see site', busy_call_back: 'Busy, call back', not_interested: 'Not interested', other: 'Other' };
+  const pill = { wants_to_see_site: 'won', busy_call_back: 'preview_requested', not_interested: 'lost', other: '' };
+  const row = c => {
+    const t = OPEN_T === c.call_id ? T_CACHE[c.call_id] : null;
+    return `<div class="card" style="padding:14px 16px">
+      <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center">
+        <div><b>${esc(c.name || c.phone)}</b>${c.city ? ' · ' + esc(c.city) : ''}<br><span class="note">${ago(c.at)} · ${esc(c.phone)}${c.secs ? ' · ' + c.secs + 's' : ''}${c.email ? ' · link emailed' : c.ok_to_text ? ' · ok to text' : ''}</span>${c.note ? `<br><span class="note">${esc(c.note)}</span>` : ''}</div>
+        <div style="display:flex;gap:8px;align-items:center"><span class="pill ${pill[c.outcome] || ''}">${esc(label[c.outcome] || c.outcome || '')}</span>
+        ${c.hasT ? `<button class="btn btn-line btn-sm" data-tr="${esc(c.call_id)}">${OPEN_T === c.call_id ? 'Hide' : 'Transcript'}</button>` : ''}</div></div>
+      ${t ? `<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px;display:grid;gap:8px">${(t.tr || []).map(m => `<div style="max-width:85%;${m.r === 'emma' ? '' : 'margin-left:auto;text-align:right'}"><span class="note">${m.r === 'emma' ? 'Emma' : 'Lead'}</span><div style="background:${m.r === 'emma' ? 'rgba(201,168,106,.12)' : 'rgba(255,255,255,.05)'};padding:8px 12px;border-radius:12px">${esc(m.t)}</div></div>`).join('') || '<span class="note">Empty transcript.</span>'}</div>` : ''}
+    </div>`;
+  };
+  return `<h2 style="margin:22px 0 10px">Recent calls with Emma</h2>${calls.length ? calls.map(row).join('') : '<div class="card empty">No calls yet.</div>'}`;
 }
 
 const savebar = () => `<div class="savebar"><span id="savemsg">${DIRTY ? 'Unsaved changes' : ''}</span><button class="btn btn-line" id="discard" ${DIRTY?'':'disabled'}>Discard</button><button class="btn btn-gold" id="save">Save settings</button></div>`;
@@ -421,6 +441,10 @@ function bind(){
   document.querySelectorAll('[data-c]').forEach(el => el.onclick = () => { SEL = el.dataset.c; render(); });
   document.querySelectorAll('[data-rv]').forEach(el => el.onclick = () => load('review_set', { id: el.dataset.rv, status: el.dataset.st }));
   document.querySelectorAll('[data-sb]').forEach(el => el.onclick = async () => { if (el.dataset.ss === 'delete' && !confirm('Delete this booking request?')) return; try { SITEBK = (await call(EDIT, { op: 'site_booking_set', slug: el.dataset.sb, at: Number(el.dataset.sat), status: el.dataset.ss })).bookings || []; render(); } catch (e) { alert('Could not update. Try again.'); } });
+  document.querySelectorAll('[data-tr]').forEach(el => el.onclick = async () => {
+    const id = el.dataset.tr; if (OPEN_T === id) { OPEN_T = null; render(); return; }
+    if (!T_CACHE[id]) { el.textContent = 'Loading...'; try { const r = await call(API, { op: 'transcript', call_id: id }); T_CACHE[id] = r.transcript || { tr: [] }; } catch (e) { el.textContent = 'Transcript'; return; } }
+    OPEN_T = id; render(); });
   document.querySelectorAll('[data-bk]').forEach(el => el.onclick = () => load('booking_set', { id: el.dataset.bk, status: el.dataset.bs }));
   document.querySelectorAll('[data-bkm]').forEach(el => el.onclick = () => { const i = document.querySelector(`[data-bkt="${CSS.escape(el.dataset.bkm)}"]`); const t = i && i.value ? new Date(i.value).getTime() : 0; if (t > Date.now()) load('booking_set', { id: el.dataset.bkm, at: t }); else if (i) i.focus(); });
   const ct = $('#cleartests'); if (ct) ct.onclick = () => load('clear_tests');
