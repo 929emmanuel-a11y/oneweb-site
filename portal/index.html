@@ -187,7 +187,7 @@ $('#e2').onsubmit = async e => {
 };
 
 /* ---------- app ---------- */
-const TABS = [['site', 'Website'], ['photos', 'Photos'], ['bookings', 'Bookings'], ['domain', 'Domain'], ['billing', 'Billing']];
+const TABS = [['site', 'Website'], ['photos', 'Photos'], ['bookings', 'Leads'], ['reviews', 'Reviews'], ['domain', 'Domain'], ['billing', 'Billing']];
 async function load() {
   D = await api({ op: 'me' });
   $('#login').classList.add('hide'); $('#app').classList.remove('hide'); $('#out').classList.remove('hide');
@@ -196,12 +196,13 @@ async function load() {
 function render() {
   const f = D.fields;
   $('#biz').textContent = f.name || 'Your website';
-  $('#status').innerHTML = D.live ? `<span class="pill ok">Live</span> &nbsp;${esc(D.site.replace(/^https:\/\//, ''))}` : `<span class="pill new">Not live yet</span> &nbsp;Text DONE to ${esc(D.textNumber || 'us')} when you're ready to publish.`;
-  $('#links').innerHTML = `<a class="btn btn-line btn-sm" href="${esc(D.site)}" target="_blank" rel="noopener">View my site</a>`;
-  const nb = (D.bookings || []).filter(b => !b.st).length;
+  $('#status').innerHTML = D.live ? `<span class="pill ok">Live</span> &nbsp;${esc(D.site.replace(/^https:\/\//, ''))}` : `<span class="pill new">Not live yet</span> &nbsp;Add your photos and details, then publish when it looks right.`;
+  $('#links').innerHTML = `<a class="btn btn-line btn-sm" href="${esc(D.site)}" target="_blank" rel="noopener">View my site</a>` + (D.live ? '' : ` <button class="btn btn-gold btn-sm" type="button" id="pub">Publish my site</button>`);
+  const pb = $('#pub'); if (pb) pb.onclick = async () => { if (!confirm('Publish your site? It goes live for everyone (you can still edit it anytime).')) return; pb.disabled = true; try { D = await api({ op: 'publish' }); render(); } catch (e) { pb.disabled = false; } };
+  const nb = (D.bookings || []).filter(b => !b.st).length + (D.leads || []).filter(b => !b.st).length;
   $('#tabs').innerHTML = TABS.map(([k, l]) => `<button class="tab ${TAB === k ? 'on' : ''}" data-t="${k}" type="button">${l}${k === 'bookings' && nb ? ` (${nb})` : ''}</button>`).join('');
   document.querySelectorAll('.tab').forEach(b => b.onclick = () => { TAB = b.dataset.t; try { localStorage.setItem('ow_portal_tab', TAB); } catch (e) {} render(); });
-  $('#view').innerHTML = ({ site, photos, bookings, domain, billing }[TAB] || site)();
+  $('#view').innerHTML = ({ site, photos, bookings, reviews, domain, billing }[TAB] || site)();
   (BIND[TAB] || (() => {}))();
 }
 const say = (el, t, ok) => { el.className = 'msg ' + (ok ? 'ok' : 'bad'); el.textContent = t; };
@@ -258,18 +259,34 @@ function photos() {
     <p class="msg" id="pmsg" role="status" aria-live="polite"></p></div>`;
 }
 function bookings() {
-  const b = D.bookings || [];
-  return `<p class="sub">Requests customers sent through your website. You also get a text for each one.</p>
-  ${b.length ? b.map(x => `<div class="card"><div class="bk"><div><b>${esc(x.name)}</b> · <a href="tel:${esc(x.phone)}">${esc(x.phone)}</a><br>
-    <span class="note">${x.service ? esc(x.service) + ' · ' : ''}${(x.date || x.time) ? 'wants ' + esc([x.date, x.time].filter(Boolean).join(', ')) + ' · ' : ''}sent ${new Date(x.at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
-    ${x.note ? `<br><span class="note">“${esc(x.note)}”</span>` : ''}</div><span class="pill ${x.st ? 'ok' : 'new'}">${x.st ? esc(x.st) : 'new'}</span></div>
-    <div class="bkact">${x.st ? '' : `<button class="btn btn-gold btn-sm" data-bs="confirmed" data-at="${x.at}">Confirmed</button><button class="btn btn-line btn-sm" data-bs="handled" data-at="${x.at}">Handled</button>`}
-    <a class="btn btn-line btn-sm" href="sms:${esc(x.phone)}">Text them</a><button class="btn btn-line btn-sm" data-bs="delete" data-at="${x.at}">Delete</button></div></div>`).join('')
-  : `<div class="card note">${D.fields.bookingOn ? 'No booking requests yet. They will show up here.' : 'Online booking is off. Turn it on in the Website tab.'}</div>`}`;
+  const items = [...(D.bookings || []).map(x => Object.assign({ kind: 'booking' }, x)), ...(D.leads || []).map(x => Object.assign({ kind: 'chat' }, x))].sort((a, b) => b.at - a.at);
+  const st = x => x.st || 'new';
+  const label = { new: 'New', confirmed: 'Contacted', handled: 'Contacted', contacted: 'Contacted', won: 'Won', lost: 'Lost' };
+  const pill = { new: 'new', won: 'ok', lost: 'bad' };
+  const counts = items.reduce((o, x) => { const k = label[st(x)] || 'New'; o[k] = (o[k] || 0) + 1; return o; }, {});
+  return `<p class="sub">Everyone who reached out through your website: booking requests and chat. You also get an email or text for each one.</p>
+  <div class="links">${['New', 'Contacted', 'Won', 'Lost'].map(k => `<span class="pill ${k === 'Won' ? 'ok' : k === 'Lost' ? 'bad' : k === 'New' ? 'new' : ''}">${k}: ${counts[k] || 0}</span>`).join(' ')}</div>
+  ${items.length ? items.map(x => `<div class="card"><div class="bk"><div><b>${esc(x.name || 'No name')}</b> <span class="pill">${x.kind === 'chat' ? 'Chat' : 'Booking'}</span><br>
+    <span class="note">${x.phone ? `<a href="tel:${esc(x.phone)}">${esc(x.phone)}</a> · ` : ''}${x.email ? `<a href="mailto:${esc(x.email)}">${esc(x.email)}</a> · ` : ''}${x.service ? esc(x.service) + ' · ' : ''}${(x.date || x.time) ? 'wants ' + esc([x.date, x.time].filter(Boolean).join(', ')) + ' · ' : ''}${new Date(x.at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
+    ${x.note ? `<br><span class="note">“${esc(x.note)}”</span>` : ''}</div><span class="pill ${pill[st(x)] || ''}">${label[st(x)] || 'New'}</span></div>
+    <div class="bkact">${['contacted', 'won', 'lost'].map(s2 => `<button class="btn ${s2 === 'won' ? 'btn-gold' : 'btn-line'} btn-sm" data-ls="${s2}" data-k="${x.kind}" data-at="${x.at}">${label[s2]}</button>`).join('')}
+    ${x.phone ? `<a class="btn btn-line btn-sm" href="tel:${esc(x.phone)}">Call</a>` : ''}<button class="btn btn-line btn-sm" data-ls="delete" data-k="${x.kind}" data-at="${x.at}">Delete</button></div></div>`).join('')
+  : `<div class="card note">No leads yet. ${D.fields.bookingOn ? 'They will show up here.' : 'Online booking is off. Turn it on in the Website tab.'}</div>`}`;
+}
+function reviews() {
+  const sent = D.reviewsSent || [];
+  return `<div class="card"><h2>Ask for a Google review</h2>
+    <p class="note" style="margin-top:-6px">After a job, send your customer a short, friendly email with a link straight to your Google review page. Each customer is only asked once.</p>
+    <form id="rf"><div class="row"><label>Customer first name<input name="name" maxlength="60" autocomplete="off"></label><label>Customer email<input name="email" type="email" autocomplete="off" required></label></div>
+    <button class="btn btn-gold" type="submit">Send review request</button><p class="msg" id="rmsg" role="status" aria-live="polite"></p></form></div>
+    <div class="card"><h2>Your review link</h2><p class="note" style="margin-top:-6px">${D.reviewUrl ? 'This is where customers land. Change it if you have a different Google review link.' : 'Paste your Google review link (Google Business Profile, then "Ask for reviews").'}</p>
+    <form id="ruf"><label>Google review link<input name="reviewUrl" value="${esc(D.reviewUrl || '')}" placeholder="https://g.page/r/.../review"></label><button class="btn btn-line btn-sm" type="submit">Save link</button></form></div>
+    ${sent.length ? `<div class="card"><h2>Sent (${sent.length})</h2>${sent.map(r => `<p class="note" style="margin:4px 0">${esc(r.name || '')} · ${esc(r.email)} · ${new Date(r.at).toLocaleDateString()}</p>`).join('')}</div>` : ''}`;
 }
 function domain() {
   if (!D.domain) return `<div class="card"><h2>Your own address</h2><p>Your site is at <b>${esc(D.site.replace(/^https:\/\//, ''))}</b>.</p>
-    <p class="note">Want your own address like yourbusiness.com? Text the domain name to ${esc(D.textNumber || 'us')} and we'll connect it. If you don't own one yet, buy it at any registrar (GoDaddy, Namecheap, Cloudflare) first.</p></div>`;
+    <p class="note">Already own a domain like yourbusiness.com? Enter it and we'll connect it. Don't have one yet? Buy it at any registrar (GoDaddy, Namecheap, Cloudflare) first.</p>
+    <form id="df"><label>Your domain<input name="domain" placeholder="yourbusiness.com" autocomplete="off"></label><button class="btn btn-gold" type="submit">Connect my domain</button><p class="msg" id="dmsg" role="status" aria-live="polite"></p></form></div>`;
   return `<div class="card"><h2>${esc(D.domain)}</h2><p id="dst"><span class="pill">Checking...</span></p>
     <p class="note">At the company where you bought <b>${esc(D.domain)}</b>, these settings must be in place:</p>
     <p class="note">1) A <b>CNAME</b> record. Name: <b>www</b>. Value: <b>sites.onewebonline.com</b><br>2) Forwarding from <b>${esc(D.domain)}</b> to <b>https://www.${esc(D.domain)}</b></p>
@@ -360,12 +377,24 @@ const BIND = {
     $('#upl').onchange = e => uploadFiles([...e.target.files].slice(0, 1), 'logo');
   },
   bookings() {
-    document.querySelectorAll('[data-bs]').forEach(b => b.onclick = async () => {
-      if (b.dataset.bs === 'delete' && !confirm('Delete this booking request?')) return;
-      b.disabled = true; try { D = await api({ op: 'booking_set', at: Number(b.dataset.at), status: b.dataset.bs }); render(); } catch (e) { b.disabled = false; }
+    document.querySelectorAll('[data-ls]').forEach(b => b.onclick = async () => {
+      if (b.dataset.ls === 'delete' && !confirm('Delete this lead?')) return;
+      b.disabled = true;
+      try { D = await api({ op: b.dataset.k === 'chat' ? 'lead_set' : 'booking_set', at: Number(b.dataset.at), status: b.dataset.ls }); render(); } catch (e) { b.disabled = false; }
     });
   },
-  domain() { domainCheck(); const r = $('#recheck'); if (r) r.onclick = domainCheck; },
+  reviews() {
+    $('#rf').onsubmit = async e => { e.preventDefault(); const F = e.target, m = $('#rmsg'); m.className = 'msg'; m.textContent = 'Sending...';
+      try { const r = await api({ op: 'review_request', name: F.name.value, email: F.email.value });
+        if (r.ok === false) { const why = { email: 'That email doesn\'t look right.', nolink: 'Add your Google review link below first.', limit: 'You\'ve sent 30 today. Try again tomorrow.', dup: 'You already asked this customer in the last 30 days.' }; say(m, why[r.error] || 'Could not send. Try again.'); return; }
+        D = r; render(); say($('#rmsg'), 'Sent! Thanks for asking.', true); } catch (err) { if (err.message !== 'auth') say(m, 'Could not send. Try again.'); } };
+    $('#ruf').onsubmit = async e => { e.preventDefault(); try { D = await api({ op: 'save', fields: { reviewUrl: e.target.reviewUrl.value } }); render(); say($('#rmsg'), 'Review link saved.', true); } catch (err) {} };
+  },
+  domain() {
+    domainCheck(); const r = $('#recheck'); if (r) r.onclick = domainCheck;
+    const f = $('#df'); if (f) f.onsubmit = async e => { e.preventDefault(); const m = $('#dmsg'); m.className = 'msg'; m.textContent = 'Connecting...';
+      try { const x = await api({ op: 'domain', domain: f.domain.value }); if (x.ok === false) { say(m, 'That doesn\'t look like a domain. Try something like yourbusiness.com'); return; } D = x; render(); } catch (err) { if (err.message !== 'auth') say(m, 'Could not connect it. Try again.'); } };
+  },
   billing() {
     const b = $('#bill'); if (!b) return;
     b.onclick = async () => { const m = $('#bmsg'); b.disabled = true; m.className = 'msg'; m.textContent = 'Opening Stripe...';
