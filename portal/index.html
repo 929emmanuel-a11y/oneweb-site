@@ -188,7 +188,7 @@ $('#e2').onsubmit = async e => {
 };
 
 /* ---------- app ---------- */
-const TABS = [['site', 'Website'], ['photos', 'Photos'], ['bookings', 'Leads'], ['reviews', 'Reviews'], ['domain', 'Domain'], ['billing', 'Billing']];
+const TABS = [['site', 'Website'], ['photos', 'Photos'], ['bookings', 'Leads'], ['reviews', 'Reviews'], ['content', 'Pages & guides'], ['domain', 'Domain'], ['billing', 'Billing']];
 async function load() {
   D = await api({ op: 'me' });
   $('#login').classList.add('hide'); $('#app').classList.remove('hide'); $('#out').classList.remove('hide');
@@ -203,7 +203,7 @@ function render() {
   const nb = (D.bookings || []).filter(b => !b.st).length + (D.leads || []).filter(b => !b.st).length;
   $('#tabs').innerHTML = TABS.map(([k, l]) => `<button class="tab ${TAB === k ? 'on' : ''}" data-t="${k}" type="button">${l}${k === 'bookings' && nb ? ` (${nb})` : ''}</button>`).join('');
   document.querySelectorAll('.tab').forEach(b => b.onclick = () => { TAB = b.dataset.t; try { localStorage.setItem('ow_portal_tab', TAB); } catch (e) {} render(); });
-  $('#view').innerHTML = ({ site, photos, bookings, reviews, domain, billing }[TAB] || site)();
+  $('#view').innerHTML = ({ site, photos, bookings, reviews, content, domain, billing }[TAB] || site)();
   (BIND[TAB] || (() => {}))();
 }
 const say = (el, t, ok) => { el.className = 'msg ' + (ok ? 'ok' : 'bad'); el.textContent = t; };
@@ -283,6 +283,25 @@ function reviews() {
     <div class="card"><h2>Your review link</h2><p class="note" style="margin-top:-6px">${D.reviewUrl ? 'This is where customers land. Change it if you have a different Google review link.' : 'Paste your Google review link (Google Business Profile, then "Ask for reviews").'}</p>
     <form id="ruf"><label>Google review link<input name="reviewUrl" value="${esc(D.reviewUrl || '')}" placeholder="https://g.page/r/.../review"></label><button class="btn btn-line btn-sm" type="submit">Save link</button></form></div>
     ${sent.length ? `<div class="card"><h2>Sent (${sent.length})</h2>${sent.map(r => `<p class="note" style="margin:4px 0">${esc(r.name || '')} · ${esc(r.email)} · ${new Date(r.at).toLocaleDateString()}</p>`).join('')}</div>` : ''}`;
+}
+let CT = null;
+function content() {
+  if (!CT) { api({ op: 'content' }).then(r => { CT = r; if (TAB === 'content') render(); }).catch(() => {}); return '<div class="card"><p class="note">Loading…</p></div>'; }
+  const base = D.site.replace(/\/$/, '');
+  const url = p => base + (p.kind === 'area' ? '/areas/' + p.slug.replace(/^area-/, '') : '/blog/' + p.slug);
+  const row = p => `<div class="card" style="padding:16px">
+      <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start"><div style="min-width:0">
+      <span class="pill ${p.st === 'live' ? 'ok' : 'new'}">${p.st === 'live' ? 'Live' : 'Goes live ' + new Date(p.pub).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+      <span class="note">&nbsp;${p.kind === 'area' ? 'Town page · ' + esc(p.town) : 'Guide'}</span>
+      <h3 style="margin:8px 0 4px">${esc(p.title)}</h3><p class="note" style="margin:0">${esc(p.desc)}</p></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">${p.st === 'live' ? `<a class="btn btn-line btn-sm" href="${esc(url(p))}" target="_blank" rel="noopener">View</a>` : `<button class="btn btn-gold btn-sm" type="button" data-pp="${esc(p.slug)}" data-pa="publish">Publish now</button>`}
+      <button class="btn btn-line btn-sm" type="button" data-pp="${esc(p.slug)}" data-pa="delete">Remove</button></div></div></div>`;
+  return `<div class="card"><h2>Towns you serve</h2>
+    <p class="note" style="margin-top:-6px">We write one page for each town you list, so people searching for your services in that town can find you. Only list towns you really work in.</p>
+    <form id="af"><label>Towns, separated by commas<input name="areas" value="${esc((CT.areas || []).join(', '))}" placeholder="Bronx, Yonkers, Mount Vernon"></label>
+    <button class="btn btn-gold btn-sm" type="submit">Save towns</button><p class="msg" id="amsg" role="status" aria-live="polite"></p></form></div>
+    <div class="card"><h2>Pages &amp; guides</h2><p class="note" style="margin-top:-6px">About one new page a week: a page for each of your towns, then helpful guides for your customers. Each one is written from your real services and reviews and checked before it's saved. New pages go live after 48 hours unless you remove them${CT.live ? '' : '. They show on Google once your site is published'}.</p></div>
+    ${(CT.posts || []).length ? CT.posts.map(row).join('') : '<div class="card"><p class="note">Your first page will show up here soon.</p></div>'}`;
 }
 function domain() {
   if (!D.domain) return `<div class="card"><h2>Your own address</h2><p>Your site is at <b>${esc(D.site.replace(/^https:\/\//, ''))}</b>.</p>
@@ -390,6 +409,13 @@ const BIND = {
         if (r.ok === false) { const why = { email: 'That email doesn\'t look right.', nolink: 'Add your Google review link below first.', limit: 'You\'ve sent 30 today. Try again tomorrow.', dup: 'You already asked this customer in the last 30 days.' }; say(m, why[r.error] || 'Could not send. Try again.'); return; }
         D = r; render(); say($('#rmsg'), 'Sent! Thanks for asking.', true); } catch (err) { if (err.message !== 'auth') say(m, 'Could not send. Try again.'); } };
     $('#ruf').onsubmit = async e => { e.preventDefault(); try { D = await api({ op: 'save', fields: { reviewUrl: e.target.reviewUrl.value } }); render(); say($('#rmsg'), 'Review link saved.', true); } catch (err) {} };
+  },
+  content() {
+    const f = $('#af'); if (f) f.onsubmit = async e => { e.preventDefault(); const m = $('#amsg');
+      try { const r = await api({ op: 'areas_save', areas: e.target.areas.value }); CT.areas = r.areas || []; say(m, 'Saved. New town pages will follow.', true); } catch (err) { if (err.message !== 'auth') say(m, 'Could not save. Try again.'); } };
+    document.querySelectorAll('[data-pp]').forEach(b => b.onclick = async () => {
+      if (b.dataset.pa === 'delete' && !confirm('Remove this page from your site?')) return;
+      b.disabled = true; try { await api({ op: 'post_set', post: b.dataset.pp, action: b.dataset.pa }); CT = null; render(); } catch (e) { b.disabled = false; } });
   },
   domain() {
     domainCheck(); const r = $('#recheck'); if (r) r.onclick = domainCheck;
