@@ -270,12 +270,13 @@ function voice(){
     <div class="card"><h2>Dialer</h2>
       <div class="toggle" style="border:0"><span>Status</span><span class="pill ${stCls}">${stTxt}</span></div>
       <div class="toggle"><span>Dialer enabled</span><input type="checkbox" data-d="enabled" ${d.enabled?'checked':''} ${ready?'':'disabled'}></div>
+      <div class="toggle"><span>Leave voicemails<br><span class="note">Turn off until texting is approved (the voicemail asks people to text back)</span></span><input type="checkbox" data-dvm ${d.voicemailOff?'':'checked'}></div>
       ${ready ? '' : '<p class="note">Add your Telnyx numbers and the Call Control App ID, save, then switch it on.</p>'}
       <div class="field"><label>Calls per day</label><input type="number" min="0" max="5000" data-d="dailyTarget" data-num value="${d.dailyTarget}"><p class="note">Start at 50, then ramp up.</p></div>
       <div class="field"><label>Max calls per number per day</label><input type="number" min="10" max="300" data-d="perNumberCap" data-num value="${d.perNumberCap}"></div>
       <div class="field"><label>Calling windows (their time)</label><div class="note" style="margin:4px 0 0">8:00–9:30 AM · 12:00–1:30 PM · 5:30–8:00 PM — when businesses rarely answer, so most calls reach voicemail. Best leads (no website, real reviews, high-ticket trades) are called first.</div></div>
       <p class="note">Weekdays only, in each business's own time zone. Each business is called once. Google Voice numbers are skipped.</p>
-      <div class="field"><label>If a person picks up</label><select data-d="liveAction"><option value="hangup" ${d.liveAction!=='play'&&d.liveAction!=='ai'?'selected':''}>Hang up (cheapest)</option><option value="play" ${d.liveAction==='play'?'selected':''}>Play the message anyway</option><option value="ai" ${d.liveAction==='ai'?'selected':''}>AI agent (Emma) talks to them, max 60s</option></select></div>
+      <div class="field"><label>If a person picks up</label><select data-d="liveAction"><option value="hangup" ${d.liveAction!=='play'&&d.liveAction!=='ai'?'selected':''}>Hang up (cheapest)</option><option value="play" ${d.liveAction==='play'?'selected':''}>Play the message anyway</option><option value="ai" ${d.liveAction==='ai'?'selected':''}>AI agent (Emma) talks to them, max 90s</option></select></div>
       <h2 style="margin-top:18px">AI agent (Emma)</h2>
       <div class="field"><label>Opening line</label><textarea data-d="agentGreeting" maxlength="400" rows="4" placeholder="Hey, is this {name}? Hi, this is Emma with One Web. So I actually already built you guys a brand new website, it's done. Can I tell you real quick how to see it?">${esc(d.agentGreeting||'')}</textarea>
       <p class="note">She waits for them to say "hello" first, then says this. Use {name} for the business name and {city} for their city. Leave empty to use the default.</p></div>
@@ -427,6 +428,7 @@ function bind(){
     DRAFT[k] = v; markDirty();
   });
   document.querySelectorAll('[data-v]').forEach(el => el.oninput = el.onchange = () => { DRAFT.voice = DRAFT.voice || {provider:'telnyx',voiceId:'',speed:1,notes:''}; DRAFT.voice[el.dataset.v] = 'num' in el.dataset ? Number(el.value) : el.value; markDirty(); });
+  document.querySelectorAll('[data-dvm]').forEach(el => el.onchange = () => { DRAFT.dialer = DRAFT.dialer || {dailyTarget:50,enabled:false}; DRAFT.dialer.voicemailOff = !el.checked; markDirty(); });
   document.querySelectorAll('[data-d]').forEach(el => el.oninput = el.onchange = () => { DRAFT.dialer = DRAFT.dialer || {dailyTarget:50,enabled:false}; DRAFT.dialer[el.dataset.d] = el.type === 'checkbox' ? el.checked : ('num' in el.dataset ? Number(el.value) : el.value); if (el.dataset.d === 'agentSpeed') { const v = document.getElementById('spdv'); if (v) v.textContent = Number(el.value).toFixed(2) + 'x'; } markDirty(); });
   document.querySelectorAll('[data-rule]').forEach(el => el.oninput = () => { DRAFT.customRules[+el.dataset.rule] = el.value; markDirty(); });
   document.querySelectorAll('[data-delrule]').forEach(el => el.onclick = () => { DRAFT.customRules.splice(+el.dataset.delrule, 1); markDirty(); render(); });
