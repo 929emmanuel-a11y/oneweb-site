@@ -282,8 +282,11 @@ function voice(){
       <div class="field"><label>If a person picks up</label><select data-d="liveAction"><option value="hangup" ${d.liveAction!=='play'&&d.liveAction!=='ai'?'selected':''}>Hang up (cheapest)</option><option value="play" ${d.liveAction==='play'?'selected':''}>Play the message anyway</option><option value="ai" ${d.liveAction==='ai'?'selected':''}>AI agent talks to them, about 90s max</option></select></div>
       <h2 style="margin-top:18px">AI agent</h2>
       <div class="grid g2"><div class="field"><label>Agent name</label><input data-d="agentName" maxlength="30" value="${esc(d.agentName||'')}" placeholder="Emma"></div>
-      <div class="field"><label>Voice (Cartesia voice ID)</label><input data-d="agentVoice" id="agentVoice" value="${esc(d.agentVoice||'')}" placeholder="Maxine (default)">
-      <p class="note">Quick pick: <a href="#" data-voice="6fbca103-0f7f-4e49-97ed-49a53b4f3534">Maxine (calm)</a> · <a href="#" data-voice="86faee7e-bf54-4293-bd90-076138544609">Paige</a>. For others, open Cartesia's Voice Library, click ⋯ then Copy ID and paste it here.</p></div></div>
+      <div class="field"><label>Voice engine</label><select data-d="agentEngine"><option value="rime" ${d.agentEngine!=='cartesia'?'selected':''}>Rime (Coda)</option><option value="cartesia" ${d.agentEngine==='cartesia'?'selected':''}>Cartesia</option></select></div></div>
+      <div class="grid g2"><div class="field"><label>Rime voice</label><input data-d="agentRimeVoice" id="agentRimeVoice" maxlength="30" value="${esc(d.agentRimeVoice||'')}" placeholder="ana (default)">
+      <p class="note">Any Coda voice name from Rime, lowercase (e.g. ana). Used when the engine is Rime.</p></div>
+      <div class="field"><label>Cartesia voice ID</label><input data-d="agentVoice" id="agentVoice" value="${esc(d.agentVoice||'')}" placeholder="Maxine (default)">
+      <p class="note">Used when the engine is Cartesia. Quick pick: <a href="#" data-voice="6fbca103-0f7f-4e49-97ed-49a53b4f3534">Maxine</a> · <a href="#" data-voice="86faee7e-bf54-4293-bd90-076138544609">Paige</a>.</p></div></div>
       <div class="field"><label>Opening line (she says this, then waits for them)</label><input data-d="agentGreeting" maxlength="400" value="${esc(d.agentGreeting||'')}" placeholder="Hey, is this {name}?">
       <p class="note">Keep it short so they can answer. {name} = business name, {city} = their city. Leave empty for the default.</p></div>
       <div class="field"><label>Intro after they answer</label><textarea data-d="agentIntro" maxlength="300" rows="2" placeholder="Hey, it's {agent} with One Web. We put together a new website for you guys, it's already done. Got a sec?">${esc(d.agentIntro||'')}</textarea>
@@ -291,7 +294,7 @@ function voice(){
       <div class="field"><label>Speaking style</label><textarea data-d="agentStyle" maxlength="800" rows="3" placeholder="Sound like a calm, low-key, relaxed person, a little laid-back, like you're just giving them a heads up. Short sentences, everyday words, one thought at a time, then stop and let them talk. Not bubbly, not excited, not salesy.">${esc(d.agentStyle||'')}</textarea>
       <p class="note">How she should come across. Leave empty for the default (calm, low-key, not salesy).</p></div>
       <div class="toggle"><span>No exclamation points<br><span class="note">Keeps the voice from sounding hyped. Recommended on.</span></span><input type="checkbox" data-d="agentNoExclaim" ${d.agentNoExclaim===false?'':'checked'}></div>
-      <div class="field"><label>Tone</label><select data-d="agentTone">${[['content','Natural (relaxed, warm)'],['calm','Calm'],['friendly','Friendly'],['neutral','Neutral / flat'],['curious','Curious'],['confident','Confident'],['excited','Excited (upbeat)']].map(([v,l]) => `<option value="${v}" ${(d.agentTone||'content')===v?'selected':''}>${l}</option>`).join('')}</select></div>
+      <div class="field"><label>Tone (Cartesia only)</label><select data-d="agentTone">${[['content','Natural (relaxed, warm)'],['calm','Calm'],['friendly','Friendly'],['neutral','Neutral / flat'],['curious','Curious'],['confident','Confident'],['excited','Excited (upbeat)']].map(([v,l]) => `<option value="${v}" ${(d.agentTone||'content')===v?'selected':''}>${l}</option>`).join('')}</select></div>
       <div class="field"><label>Talking speed: <b id="spdv">${Number(d.agentSpeed||1).toFixed(2)}x</b></label><input type="range" min="0.8" max="1.2" step="0.05" data-d="agentSpeed" data-num value="${d.agentSpeed||1}"><p class="note">1.00x is normal. Changes apply to the next call.</p></div>
       <div class="field"><label>How Emma sends the site link</label><select data-d="linkBy"><option value="email" ${d.linkBy!=='text'?'selected':''}>Email (until texting is approved)</option><option value="text" ${d.linkBy==='text'?'selected':''}>Text from our toll-free number</option></select><p class="note">Text only works once the toll-free number below is verified. Emma always asks first, and nothing is sent without a yes.</p></div>
       <div class="field"><label>Toll-free number for links</label><input data-d="linkFrom" placeholder="(888) 555-0123" value="${esc(d.linkFrom||'')}"></div>
@@ -402,9 +405,42 @@ function results(){
     <div class="card kpi"><span>Wanted to see site</span><b>${w.wants_to_see_site || 0}</b></div>
     <div class="card kpi"><span>Busy, call back</span><b>${w.busy_call_back || 0}</b></div>
     <div class="card kpi"><span>Not interested</span><b>${w.not_interested || 0}</b></div></div>
+  ${costs()}
   <div class="card"><h2>By trade</h2>${table(dialsT, R.byTrade || {}, 'Trade')}</div>
   <div class="card"><h2>By phone number</h2><p class="note">Cap today = warm-up limit (starts at 20/day, +10 each week). A number with a much lower reply rate than the rest may be getting flagged as spam: rest it.</p>${table(dialsN, R.byNumber || {}, 'Number', true)}</div>
   ${callsList()}`;
+}
+
+/* API cost meter: estimated from what each call used (list prices, pay-as-you-go) */
+const RATES = { telMin: 0.007, streamMin: 0.0035, amdCall: 0.0065, sttMin: 0.0048, llmIn: 0.40, llmOut: 1.60, rimeMin: 0.05, rimeCharsPerMin: 900, cartChar: 0.00004, rimeFree: 50 };
+function costDay(d){
+  const u = (STATE.usage || {})[d] || {}, o = ((DSTATS && DSTATS.outcomes) || {})[d] || {};
+  const aiMin = (u.secs || 0) / 60;
+  const telnyx = (o.talkSec || 0) / 60 * RATES.telMin + (o.answered || 0) * RATES.amdCall + aiMin * RATES.streamMin;
+  const stt = aiMin * RATES.sttMin;
+  const llm = (u.llmIn || 0) / 1e6 * RATES.llmIn + (u.llmOut || 0) / 1e6 * RATES.llmOut;
+  const rime = (u.rimeChars || 0) / RATES.rimeCharsPerMin * RATES.rimeMin;
+  const cartesia = (u.cartesiaChars || 0) * RATES.cartChar;
+  return { telnyx, stt, llm, rime, cartesia, total: telnyx + stt + llm + rime + cartesia, calls: u.calls || 0, dials: o.ended || 0 };
+}
+function costs(){
+  const days = [...new Set(Object.keys(STATE.usage || {}).concat(Object.keys((DSTATS && DSTATS.outcomes) || {})))];
+  const fmt = n => '$' + (n < 1 ? n.toFixed(3) : n.toFixed(2));
+  const sum = list => list.reduce((a, d) => { const c = costDay(d); for (const k in c) a[k] = (a[k] || 0) + c[k]; return a; }, {});
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date());
+  const wk = new Date(Date.now() - 6 * 864e5).toISOString().slice(0, 10), mo = today.slice(0, 7);
+  const T = sum(days.filter(d => d === today)), W = sum(days.filter(d => d >= wk)), M = sum(days.filter(d => d.startsWith(mo)));
+  const per = M.calls ? (M.stt + M.llm + M.rime + M.cartesia) / M.calls : 0;
+  const rows = [['Telnyx (calls, voicemail check, audio stream)', M.telnyx], ['Deepgram (Emma hearing)', M.stt], ['OpenAI (Emma thinking)', M.llm], ['Rime (Emma voice)', M.rime], ['Cartesia (old voice)', M.cartesia]];
+  const max = Math.max(0.0001, ...rows.map(r => r[1] || 0));
+  return `<div class="card"><h2>API costs (estimate)</h2>
+    <div class="grid g4 kpis" style="margin-bottom:14px">
+      <div class="card kpi" style="margin:0"><span>Today</span><b>${fmt(T.total || 0)}</b></div>
+      <div class="card kpi" style="margin:0"><span>Last 7 days</span><b>${fmt(W.total || 0)}</b></div>
+      <div class="card kpi" style="margin:0"><span>This month</span><b>${fmt(M.total || 0)}</b></div>
+      <div class="card kpi" style="margin:0"><span>AI per Emma call</span><b>${fmt(per)}</b></div></div>
+    <div class="funnel">${rows.map(([l, v]) => `<div class="frow"><span>${l}</span><div class="bar"><div style="width:${Math.round((v || 0) / max * 100)}%"></div></div><b>${fmt(v || 0)}</b></div>`).join('')}</div>
+    <p class="note" style="margin-top:12px">This month: ${M.dials || 0} dials, ${M.calls || 0} Emma calls. Rime free credit: ${fmt(Math.min(M.rime || 0, RATES.rimeFree))} of $${RATES.rimeFree} used (resets monthly). Based on list prices; texts, numbers and monthly plans aren't included. Check each provider's billing page for exact charges.</p></div>`;
 }
 
 /* paying clients + plan switches */
