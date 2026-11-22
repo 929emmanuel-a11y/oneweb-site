@@ -282,9 +282,11 @@ function voice(){
       <div class="field"><label>If a person picks up</label><select data-d="liveAction"><option value="hangup" ${d.liveAction!=='play'&&d.liveAction!=='ai'?'selected':''}>Hang up (cheapest)</option><option value="play" ${d.liveAction==='play'?'selected':''}>Play the message anyway</option><option value="ai" ${d.liveAction==='ai'?'selected':''}>AI agent talks to them, about 90s max</option></select></div>
       <h2 style="margin-top:18px">AI agent</h2>
       <div class="grid g2"><div class="field"><label>Agent name</label><input data-d="agentName" maxlength="30" value="${esc(d.agentName||'')}" placeholder="Emma"></div>
-      <div class="field"><label>Voice engine</label><select data-d="agentEngine"><option value="rime" ${d.agentEngine!=='cartesia'?'selected':''}>Rime (Coda)</option><option value="cartesia" ${d.agentEngine==='cartesia'?'selected':''}>Cartesia</option></select></div></div>
-      <div class="grid g2"><div class="field"><label>Rime voice</label><input data-d="agentRimeVoice" id="agentRimeVoice" maxlength="30" value="${esc(d.agentRimeVoice||'')}" placeholder="ana (default)">
-      <p class="note">Any Coda voice name from Rime, lowercase (e.g. ana). Used when the engine is Rime.</p></div>
+      <div class="field"><label>Voice engine</label><select data-d="agentEngine"><option value="rime" ${d.agentEngine!=='cartesia'?'selected':''}>Rime</option><option value="cartesia" ${d.agentEngine==='cartesia'?'selected':''}>Cartesia</option></select></div></div>
+      <div class="grid g2"><div class="field"><label>Rime model</label><select data-d="agentRimeModel"><option value="mistv3" ${d.agentRimeModel!=='coda'?'selected':''}>Mist v3 ($0.03/min of speech)</option><option value="coda" ${d.agentRimeModel==='coda'?'selected':''}>Coda ($0.05/min, e.g. Ana)</option></select></div>
+      <div class="field"><label>Ears (speech to text)</label><select data-d="agentStt"><option value="rime" ${d.agentStt!=='deepgram'?'selected':''}>Rime</option><option value="deepgram" ${d.agentStt==='deepgram'?'selected':''}>Deepgram (backup)</option></select></div></div>
+      <div class="grid g2"><div class="field"><label>Rime voices (A/B test)</label><input data-d="agentRimeVoice" id="agentRimeVoice" maxlength="120" value="${esc(d.agentRimeVoice||'')}" placeholder="vespera, wildflower, alexis">
+      <p class="note">Lowercase voice names, comma-separated. Each call picks one at random and Results shows which converts best. One name = always that voice. Names must exist on the model chosen above.</p></div>
       <div class="field"><label>Cartesia voice ID</label><input data-d="agentVoice" id="agentVoice" value="${esc(d.agentVoice||'')}" placeholder="Maxine (default)">
       <p class="note">Used when the engine is Cartesia. Quick pick: <a href="#" data-voice="6fbca103-0f7f-4e49-97ed-49a53b4f3534">Maxine</a> · <a href="#" data-voice="86faee7e-bf54-4293-bd90-076138544609">Paige</a>.</p></div></div>
       <div class="field"><label>Opening line (she says this, then waits for them)</label><input data-d="agentGreeting" maxlength="400" value="${esc(d.agentGreeting||'')}" placeholder="Hey, is this {name}?">
@@ -405,21 +407,33 @@ function results(){
     <div class="card kpi"><span>Wanted to see site</span><b>${w.wants_to_see_site || 0}</b></div>
     <div class="card kpi"><span>Busy, call back</span><b>${w.busy_call_back || 0}</b></div>
     <div class="card kpi"><span>Not interested</span><b>${w.not_interested || 0}</b></div></div>
+  ${voiceTest()}
   ${costs()}
   <div class="card"><h2>By trade</h2>${table(dialsT, R.byTrade || {}, 'Trade')}</div>
   <div class="card"><h2>By phone number</h2><p class="note">Cap today = warm-up limit (starts at 20/day, +10 each week). A number with a much lower reply rate than the rest may be getting flagged as spam: rest it.</p>${table(dialsN, R.byNumber || {}, 'Number', true)}</div>
   ${callsList()}`;
 }
 
+/* voice A/B test: which voice gets the most "wants to see the site" */
+function voiceTest(){
+  const V = STATE.voiceStats || {}; const keys = Object.keys(V).sort((a, b) => V[b].calls - V[a].calls);
+  if (!keys.length) return '<div class="card"><h2>Voice test</h2><p class="note">Fills in as Emma makes calls. Each call uses one of the voices set in Phone & Dialer.</p></div>';
+  const rate = v => v.calls ? v.wants_to_see_site / v.calls : 0; const best = keys.reduce((a, k) => rate(V[k]) > rate(V[a]) ? k : a, keys[0]);
+  return `<div class="card"><h2>Voice test</h2><table style="width:100%;border-collapse:collapse;font-size:14px"><tr style="color:var(--mut);text-align:left"><th>Voice</th><th>Calls</th><th>Wants site</th><th>Conversion</th><th>Busy</th><th>Not interested</th></tr>
+    ${keys.map(k => { const v = V[k]; return `<tr style="border-top:1px solid var(--line)"><td style="padding:8px 0">${esc(k)}${k === best && v.calls >= 30 ? ' <span class="pill won">leading</span>' : ''}</td><td>${v.calls}</td><td>${v.wants_to_see_site || 0}</td><td><b>${(100 * rate(v)).toFixed(1)}%</b></td><td>${v.busy_call_back || 0}</td><td>${v.not_interested || 0}</td></tr>`; }).join('')}</table>
+    <p class="note" style="margin-top:10px">Don't pick a winner until each voice has about 100 pickups; small numbers swing a lot.</p></div>`;
+}
+
 /* API cost meter: estimated from what each call used (list prices, pay-as-you-go) */
-const RATES = { telMin: 0.007, streamMin: 0.0035, amdCall: 0.0065, sttMin: 0.0048, llmIn: 0.40, llmOut: 1.60, rimeMin: 0.05, rimeCharsPerMin: 900, cartChar: 0.00004, rimeFree: 50 };
+const RATES = { telMin: 0.007, streamMin: 0.0035, amdCall: 0.0065, sttMin: 0.0048, rimeSttMin: 0.002, mistMin: 0.03, llmIn: 0.40, llmOut: 1.60, rimeMin: 0.05, rimeCharsPerMin: 900, cartChar: 0.00004, rimeFree: 50 };
 function costDay(d){
   const u = (STATE.usage || {})[d] || {}, o = ((DSTATS && DSTATS.outcomes) || {})[d] || {};
   const aiMin = (u.secs || 0) / 60;
   const telnyx = (o.talkSec || 0) / 60 * RATES.telMin + (o.answered || 0) * RATES.amdCall + aiMin * RATES.streamMin;
-  const stt = aiMin * RATES.sttMin;
+  const rsMin = (u.rimeSttSecs || 0) / 60;
+  const stt = Math.max(0, aiMin - rsMin) * RATES.sttMin + rsMin * RATES.rimeSttMin;
   const llm = (u.llmIn || 0) / 1e6 * RATES.llmIn + (u.llmOut || 0) / 1e6 * RATES.llmOut;
-  const rime = (u.rimeChars || 0) / RATES.rimeCharsPerMin * RATES.rimeMin;
+  const rime = (u.rimeChars || 0) / RATES.rimeCharsPerMin * RATES.rimeMin + (u.mistChars || 0) / RATES.rimeCharsPerMin * RATES.mistMin;
   const cartesia = (u.cartesiaChars || 0) * RATES.cartChar;
   return { telnyx, stt, llm, rime, cartesia, total: telnyx + stt + llm + rime + cartesia, calls: u.calls || 0, dials: o.ended || 0 };
 }
@@ -431,7 +445,7 @@ function costs(){
   const wk = new Date(Date.now() - 6 * 864e5).toISOString().slice(0, 10), mo = today.slice(0, 7);
   const T = sum(days.filter(d => d === today)), W = sum(days.filter(d => d >= wk)), M = sum(days.filter(d => d.startsWith(mo)));
   const per = M.calls ? (M.stt + M.llm + M.rime + M.cartesia) / M.calls : 0;
-  const rows = [['Telnyx (calls, voicemail check, audio stream)', M.telnyx], ['Deepgram (Emma hearing)', M.stt], ['OpenAI (Emma thinking)', M.llm], ['Rime (Emma voice)', M.rime], ['Cartesia (old voice)', M.cartesia]];
+  const rows = [['Telnyx (calls, voicemail check, audio stream)', M.telnyx], ['Hearing (Rime / Deepgram)', M.stt], ['OpenAI (Emma thinking)', M.llm], ['Rime (Emma voice)', M.rime], ['Cartesia (old voice)', M.cartesia]];
   const max = Math.max(0.0001, ...rows.map(r => r[1] || 0));
   return `<div class="card"><h2>API costs (estimate)</h2>
     <div class="grid g4 kpis" style="margin-bottom:14px">
