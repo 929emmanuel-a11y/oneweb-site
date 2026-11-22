@@ -107,9 +107,9 @@ textarea{min-height:90px;resize:vertical}
 const API = 'https://n8n-production-9be3db1c.up.railway.app/webhook/oneweb-api';
 const CHAT = 'https://n8n-production-9be3db1c.up.railway.app/webhook/oneweb-test-chat-b3a761a6';
 const DIAL = 'https://n8n-production-9be3db1c.up.railway.app/webhook/oneweb-dialer-stats';
-let DSTATS = null, SITEBK = [];
+let DSTATS = null, SITEBK = [], CLIENTS = [];
 const EDIT = 'https://n8n-production-9be3db1c.up.railway.app/webhook/oneweb-preview-edit';
-const TABS = [['overview','Overview'],['convos','Conversations'],['closer','AI Closer'],['pricing','Pricing'],['reviews','Reviews'],['bookings','Bookings'],['results','Results'],['voice','Phone & Dialer'],['test','Test Chat']];
+const TABS = [['overview','Overview'],['convos','Conversations'],['closer','AI Closer'],['pricing','Pricing'],['reviews','Reviews'],['bookings','Bookings'],['results','Results'],['clients','Clients'],['voice','Phone & Dialer'],['test','Test Chat']];
 let AUTH = null, STATE = null, TAB = 'overview', DRAFT = null, SEL = null, DIRTY = false;
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -128,6 +128,7 @@ async function load(op='state', extra={}){
   STATE = await call(API, Object.assign({ op }, extra));
   try { DSTATS = await call(DIAL, {}); } catch (e) { if (e.auth) throw e; }
   try { SITEBK = (await call(EDIT, { op: 'site_bookings' })).bookings || []; } catch (e) {}
+  try { CLIENTS = (await call(EDIT, { op: 'clients' })).clients || []; } catch (e) {}
   if (!DIRTY) DRAFT = JSON.parse(JSON.stringify(STATE.settings));
   $('#synced').textContent = 'Synced '+new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
   render();
@@ -138,7 +139,7 @@ function nav(){
   $('#nav').innerHTML = h; $('#mnav').innerHTML = h;
   document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { TAB = b.dataset.t; render(); });
 }
-function render(){ nav(); const f = { overview, convos, closer, pricing, reviews, bookings, results, voice, test }[TAB]; $('#main').innerHTML = f(); bind(); }
+function render(){ nav(); const f = { overview, convos, closer, pricing, reviews, bookings, results, clients, voice, test }[TAB]; $('#main').innerHTML = f(); bind(); }
 
 function dialToday(){
   const d = DSTATS || {}, t = d.today || {}, o = (d.outcomes || {})[t.date] || {};
@@ -270,13 +271,15 @@ function voice(){
     <div class="card"><h2>Dialer</h2>
       <div class="toggle" style="border:0"><span>Status</span><span class="pill ${stCls}">${stTxt}</span></div>
       <div class="toggle"><span>Dialer enabled</span><input type="checkbox" data-d="enabled" ${d.enabled?'checked':''} ${ready?'':'disabled'}></div>
+      <div class="grid g2"><div class="field"><label>Start calling at (their local time)</label><select data-d="startHour" data-num>${[8,9,10,11,12].map(h => `<option value="${h}" ${d.startHour===h?'selected':''}>${h > 12 ? h-12 : h}${h < 12 ? ' AM' : ' PM'}</option>`).join('')}</select></div>
+      <div class="field"><label>Stop calling at</label><select data-d="endHour" data-num>${[16,17,18,19,20].map(h => `<option value="${h}" ${d.endHour===h?'selected':''}>${h-12} PM</option>`).join('')}</select><p class="note">Never later than 8 PM (some states, like Florida, require it).</p></div></div>
       <div class="toggle"><span>Leave voicemails<br><span class="note">Turn off until texting is approved (the voicemail asks people to text back)</span></span><input type="checkbox" data-dvm ${d.voicemailOff?'':'checked'}></div>
       ${ready ? '' : '<p class="note">Add your Telnyx numbers and the Call Control App ID, save, then switch it on.</p>'}
       <div class="field"><label>Calls per day</label><input type="number" min="0" max="5000" data-d="dailyTarget" data-num value="${d.dailyTarget}"><p class="note">Start at 50, then ramp up.</p></div>
       <div class="field"><label>Max calls per number per day</label><input type="number" min="10" max="300" data-d="perNumberCap" data-num value="${d.perNumberCap}"></div>
       <div class="field"><label>Calling windows (their time)</label><div class="note" style="margin:4px 0 0">8:00–9:30 AM · 12:00–1:30 PM · 5:30–8:00 PM — when businesses rarely answer, so most calls reach voicemail. Best leads (no website, real reviews, high-ticket trades) are called first.</div></div>
       <p class="note">Weekdays only, in each business's own time zone. Each business is called once. Google Voice numbers are skipped.</p>
-      <div class="field"><label>If a person picks up</label><select data-d="liveAction"><option value="hangup" ${d.liveAction!=='play'&&d.liveAction!=='ai'?'selected':''}>Hang up (cheapest)</option><option value="play" ${d.liveAction==='play'?'selected':''}>Play the message anyway</option><option value="ai" ${d.liveAction==='ai'?'selected':''}>AI agent (Emma) talks to them, max 90s</option></select></div>
+      <div class="field"><label>If a person picks up</label><select data-d="liveAction"><option value="hangup" ${d.liveAction!=='play'&&d.liveAction!=='ai'?'selected':''}>Hang up (cheapest)</option><option value="play" ${d.liveAction==='play'?'selected':''}>Play the message anyway</option><option value="ai" ${d.liveAction==='ai'?'selected':''}>AI agent (Emma) talks to them, about 90s max</option></select></div>
       <h2 style="margin-top:18px">AI agent (Emma)</h2>
       <div class="field"><label>Opening line</label><textarea data-d="agentGreeting" maxlength="400" rows="4" placeholder="Hey, is this {name}? Hi, this is Emma with One Web. So I actually already built you guys a brand new website, it's done. Can I tell you real quick how to see it?">${esc(d.agentGreeting||'')}</textarea>
       <p class="note">She waits for them to say "hello" first, then says this. Use {name} for the business name and {city} for their city. Leave empty to use the default.</p></div>
@@ -396,6 +399,15 @@ function results(){
   ${callsList()}`;
 }
 
+/* paying clients + plan switches */
+function clients(){
+  const c = CLIENTS || [];
+  return `<h1>Clients</h1><p class="sub">Everyone who paid. Turn on the AI chat for clients on the Growth plan (it shows on their live site and saves visitor leads to their portal).</p>
+  ${c.length ? c.map(x => `<div class="card" style="padding:16px"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center">
+    <div><b>${esc(x.name)}</b>${x.city ? ' · ' + esc(x.city) : ''}<br><span class="note"><a href="${esc(x.site)}" target="_blank" rel="noopener">${esc(x.site.replace(/^https:\/\//, ''))}</a> · ${x.live ? 'live' : 'not published yet'}${x.email ? ' · ' + esc(x.email) : ''}${x.billing ? ' · billing linked' : ''} · ${x.leads} chat leads · ${x.bookings} bookings</span></div>
+    <label class="toggle" style="margin:0;gap:10px"><span>AI chat (Growth)</span><input type="checkbox" data-cchat="${esc(x.slug)}" ${x.chat ? 'checked' : ''}></label></div></div>`).join('') : '<div class="card empty">No paying clients yet.</div>'}`;
+}
+
 /* Emma's calls: outcome + full transcript of what each side said */
 let OPEN_T = null, T_CACHE = {};
 function callsList(){
@@ -443,6 +455,7 @@ function bind(){
   document.querySelectorAll('[data-c]').forEach(el => el.onclick = () => { SEL = el.dataset.c; render(); });
   document.querySelectorAll('[data-rv]').forEach(el => el.onclick = () => load('review_set', { id: el.dataset.rv, status: el.dataset.st }));
   document.querySelectorAll('[data-sb]').forEach(el => el.onclick = async () => { if (el.dataset.ss === 'delete' && !confirm('Delete this booking request?')) return; try { SITEBK = (await call(EDIT, { op: 'site_booking_set', slug: el.dataset.sb, at: Number(el.dataset.sat), status: el.dataset.ss })).bookings || []; render(); } catch (e) { alert('Could not update. Try again.'); } });
+  document.querySelectorAll('[data-cchat]').forEach(el => el.onchange = async () => { try { CLIENTS = (await call(EDIT, { op: 'client_set', slug: el.dataset.cchat, chatOn: el.checked })).clients || CLIENTS; render(); } catch (e) { alert('Could not update. Try again.'); el.checked = !el.checked; } });
   document.querySelectorAll('[data-tr]').forEach(el => el.onclick = async () => {
     const id = el.dataset.tr; if (OPEN_T === id) { OPEN_T = null; render(); return; }
     if (!T_CACHE[id]) { el.textContent = 'Loading...'; try { const r = await call(API, { op: 'transcript', call_id: id }); T_CACHE[id] = r.transcript || { tr: [] }; } catch (e) { el.textContent = 'Transcript'; return; } }
