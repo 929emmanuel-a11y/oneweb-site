@@ -362,7 +362,7 @@ function bookings(){
   const strip = days.map(d => { const n = up.filter(b => { const x = new Date(b.at); return x >= d && x < new Date(d.getTime() + 864e5); }).length;
     return `<div class="card kpi" style="margin:0;padding:14px;text-align:center"><span>${d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' })}</span><b style="font-size:28px">${n}</b></div>`; }).join('');
   const row = b => `<div class="card" style="padding:16px">
-      <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><b>${esc(b.name || b.phone)}</b>${b.city ? ' · ' + esc(b.city) : ''}<br>
+      <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><b>${b.owner ? esc(b.owner) + ' · ' : ''}${esc(b.name || b.phone)}</b>${b.city ? ' · ' + esc(b.city) : ''}<br>
       <span class="note">${their(b)} their time · ${mine(b)} yours · ${esc(b.phone)}</span>${b.note ? `<br><span class="note">“${esc(b.note)}”</span>` : ''}</div>
       <span class="pill ${b.status === 'done' ? 'won' : b.status === 'booked' ? 'preview_requested' : 'lost'}">${esc(b.status.replace('_', '-'))}</span></div>
       ${b.status === 'booked' ? `<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center">
@@ -477,7 +477,7 @@ function callsList(){
     const t = OPEN_T === c.call_id ? T_CACHE[c.call_id] : null;
     return `<div class="card" style="padding:14px 16px">
       <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center">
-        <div><b>${esc(c.name || c.phone)}</b>${c.city ? ' · ' + esc(c.city) : ''}<br><span class="note">${ago(c.at)} · ${esc(c.phone)}${c.secs ? ' · ' + c.secs + 's' : ''}${c.email ? ' · link emailed' : c.ok_to_text ? ' · ok to text' : ''}</span>${c.note ? `<br><span class="note">${esc(c.note)}</span>` : ''}</div>
+        <div><b>${c.owner ? esc(c.owner) + ' · ' : ''}${esc(c.name || c.phone)}</b>${c.city ? ' · ' + esc(c.city) : ''}<br><span class="note">${ago(c.at)} · ${esc(c.phone)}${c.secs ? ' · ' + c.secs + 's' : ''}${c.email ? ' · link emailed' : c.ok_to_text ? ' · ok to text' : ''}</span>${c.note ? `<br><span class="note">${esc(c.note)}</span>` : ''}</div>
         <div style="display:flex;gap:8px;align-items:center"><span class="pill ${pill[c.outcome] || ''}">${esc(label[c.outcome] || c.outcome || '')}</span>
         ${c.hasT ? `<button class="btn btn-line btn-sm" data-tr="${esc(c.call_id)}">${OPEN_T === c.call_id ? 'Hide' : 'Transcript'}</button>` : ''}</div></div>
       ${t ? `<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px;display:grid;gap:8px">${(t.tr || []).map(m => `<div style="max-width:85%;${m.r === 'emma' ? '' : 'margin-left:auto;text-align:right'}"><span class="note">${m.r === 'emma' ? 'Emma' : 'Lead'}</span><div style="background:${m.r === 'emma' ? 'rgba(201,168,106,.12)' : 'rgba(255,255,255,.05)'};padding:8px 12px;border-radius:12px">${esc(m.t)}</div></div>`).join('') || '<span class="note">Empty transcript.</span>'}</div>` : ''}
