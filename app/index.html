@@ -285,6 +285,7 @@ function voice(){
       <div class="field"><label>Voice engine</label><select data-d="agentEngine"><option value="rime" ${d.agentEngine!=='cartesia'?'selected':''}>Rime</option><option value="cartesia" ${d.agentEngine==='cartesia'?'selected':''}>Cartesia</option></select></div></div>
       <div class="grid g2"><div class="field"><label>Rime model</label><select data-d="agentRimeModel"><option value="mistv3" ${d.agentRimeModel!=='coda'?'selected':''}>Mist v3 ($0.03/min of speech)</option><option value="coda" ${d.agentRimeModel==='coda'?'selected':''}>Coda ($0.05/min, e.g. Ana)</option></select></div>
       <div class="field"><label>Ears (speech to text)</label><select data-d="agentStt"><option value="rime" ${d.agentStt!=='deepgram'?'selected':''}>Rime</option><option value="deepgram" ${d.agentStt==='deepgram'?'selected':''}>Deepgram (backup)</option></select></div></div>
+      <div class="field"><label>Brain (AI model)</label><select data-d="agentLlm">${[['gpt-4.1-mini','GPT-4.1 mini (cheapest, ~$0.003/call)'],['gpt-4.1','GPT-4.1 (smarter conversation, ~$0.01–0.015/call)'],['gpt-4o-mini','GPT-4o mini'],['gpt-4o','GPT-4o']].map(([v,l]) => `<option value="${v}" ${(d.agentLlm||'gpt-4.1-mini')===v?'selected':''}>${l}</option>`).join('')}</select><p class="note">The smarter model follows the conversation better (answers the actual question, waits for replies). Costs about a penny more per call.</p></div>
       <div class="grid g2"><div class="field"><label>Rime voices (A/B test)</label><input data-d="agentRimeVoice" id="agentRimeVoice" maxlength="120" value="${esc(d.agentRimeVoice||'')}" placeholder="vespera, wildflower">
       <p class="note">Lowercase voice names, comma-separated. Each call picks one at random and Results shows which converts best. One name = always that voice. Names must exist on the model chosen above.</p></div>
       <div class="field"><label>Cartesia voice ID</label><input data-d="agentVoice" id="agentVoice" value="${esc(d.agentVoice||'')}" placeholder="Maxine (default)">
@@ -425,14 +426,14 @@ function voiceTest(){
 }
 
 /* API cost meter: estimated from what each call used (list prices, pay-as-you-go) */
-const RATES = { telMin: 0.007, streamMin: 0.0035, amdCall: 0.0065, sttMin: 0.0048, rimeSttMin: 0.002, mistMin: 0.03, llmIn: 0.40, llmOut: 1.60, rimeMin: 0.05, rimeCharsPerMin: 900, cartChar: 0.00004, rimeFree: 50 };
+const RATES = { telMin: 0.007, streamMin: 0.0035, amdCall: 0.0065, sttMin: 0.0048, rimeSttMin: 0.002, mistMin: 0.03, bigIn: 2.0, bigOut: 8.0, llmIn: 0.40, llmOut: 1.60, rimeMin: 0.05, rimeCharsPerMin: 900, cartChar: 0.00004, rimeFree: 50 };
 function costDay(d){
   const u = (STATE.usage || {})[d] || {}, o = ((DSTATS && DSTATS.outcomes) || {})[d] || {};
   const aiMin = (u.secs || 0) / 60;
   const telnyx = (o.talkSec || 0) / 60 * RATES.telMin + (o.answered || 0) * RATES.amdCall + aiMin * RATES.streamMin;
   const rsMin = (u.rimeSttSecs || 0) / 60;
   const stt = Math.max(0, aiMin - rsMin) * RATES.sttMin + rsMin * RATES.rimeSttMin;
-  const llm = (u.llmIn || 0) / 1e6 * RATES.llmIn + (u.llmOut || 0) / 1e6 * RATES.llmOut;
+  const llm = (u.llmIn || 0) / 1e6 * RATES.llmIn + (u.llmOut || 0) / 1e6 * RATES.llmOut + (u.bigIn || 0) / 1e6 * RATES.bigIn + (u.bigOut || 0) / 1e6 * RATES.bigOut;
   const rime = (u.rimeChars || 0) / RATES.rimeCharsPerMin * RATES.rimeMin + (u.mistChars || 0) / RATES.rimeCharsPerMin * RATES.mistMin;
   const cartesia = (u.cartesiaChars || 0) * RATES.cartChar;
   return { telnyx, stt, llm, rime, cartesia, total: telnyx + stt + llm + rime + cartesia, calls: u.calls || 0, dials: o.ended || 0 };
