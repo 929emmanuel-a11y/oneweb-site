@@ -291,7 +291,7 @@ function content() {
   const url = p => base + (p.kind === 'area' ? '/areas/' + p.slug.replace(/^area-/, '') : '/blog/' + p.slug);
   const row = p => `<div class="card" style="padding:16px">
       <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start"><div style="min-width:0">
-      <span class="pill ${p.st === 'live' ? 'ok' : 'new'}">${p.st === 'live' ? 'Live' : 'Goes live ' + new Date(p.pub).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+      <span class="pill ${p.st === 'live' ? 'ok' : 'new'}">${p.st === 'live' ? 'Live' : p.st === 'review' ? 'Needs your OK' : 'Goes live ' + new Date(p.pub).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span>
       <span class="note">&nbsp;${p.kind === 'area' ? 'Town page · ' + esc(p.town) : 'Guide'}</span>
       <h3 style="margin:8px 0 4px">${esc(p.title)}</h3><p class="note" style="margin:0">${esc(p.desc)}</p></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">${p.st === 'live' ? `<a class="btn btn-line btn-sm" href="${esc(url(p))}" target="_blank" rel="noopener">View</a>` : `<button class="btn btn-gold btn-sm" type="button" data-pp="${esc(p.slug)}" data-pa="publish">Publish now</button>`}
