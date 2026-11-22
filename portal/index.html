@@ -112,6 +112,7 @@ footer a{color:var(--mut)}
 <script>
 const API = 'https://n8n-production-9be3db1c.up.railway.app/webhook/oneweb-portal';
 const $ = s => document.querySelector(s);
+const fmtPhone = p => { const d = String(p || '').replace(/\D/g, '').slice(-10); return d.length === 10 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : p; };
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const ls = { get(k) { try { return sessionStorage.getItem(k) || localStorage.getItem(k); } catch (e) { return null; } },
   set(k, v, keep) { try { (keep ? localStorage : sessionStorage).setItem(k, v); } catch (e) {} },
@@ -248,7 +249,7 @@ const hourRow = (d, t) => `<div class="h"><input name="hd" value="${esc(d)}" pla
 function photos() {
   const p = D.photos || [];
   return `<div class="card"><h2>Photos</h2>
-    <p class="note" style="margin-top:-6px">Add up to 12 photos of your work. The first photo is the big one at the top of your site. You can also text photos to <b>${esc(D.textNumber || 'your One Web number')}</b>.</p>
+    <p class="note" style="margin-top:-6px">Add up to 12 photos of your work. The first photo is the big one at the top of your site.</p>
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin:0 0 18px">
       <label class="btn btn-gold" style="margin:0;color:#0a0a0a">Upload photos<input type="file" id="upp" accept="image/*" multiple class="hide"></label>
       <label class="btn btn-line" style="margin:0">${D.logo ? 'Replace logo' : 'Upload logo'}<input type="file" id="upl" accept="image/*" class="hide"></label>
@@ -267,7 +268,7 @@ function bookings() {
   return `<p class="sub">Everyone who reached out through your website: booking requests and chat. You also get an email or text for each one.</p>
   <div class="links">${['New', 'Contacted', 'Won', 'Lost'].map(k => `<span class="pill ${k === 'Won' ? 'ok' : k === 'Lost' ? 'bad' : k === 'New' ? 'new' : ''}">${k}: ${counts[k] || 0}</span>`).join(' ')}</div>
   ${items.length ? items.map(x => `<div class="card"><div class="bk"><div><b>${esc(x.name || 'No name')}</b> <span class="pill">${x.kind === 'chat' ? 'Chat' : 'Booking'}</span><br>
-    <span class="note">${x.phone ? `<a href="tel:${esc(x.phone)}">${esc(x.phone)}</a> · ` : ''}${x.email ? `<a href="mailto:${esc(x.email)}">${esc(x.email)}</a> · ` : ''}${x.service ? esc(x.service) + ' · ' : ''}${(x.date || x.time) ? 'wants ' + esc([x.date, x.time].filter(Boolean).join(', ')) + ' · ' : ''}${new Date(x.at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
+    <span class="note">${x.phone ? `<a href="tel:${esc(x.phone)}">${esc(fmtPhone(x.phone))}</a> · ` : ''}${x.email ? `<a href="mailto:${esc(x.email)}">${esc(x.email)}</a> · ` : ''}${x.service ? esc(x.service) + ' · ' : ''}${(x.date || x.time) ? 'wants ' + esc([x.date, x.time].filter(Boolean).join(', ')) + ' · ' : ''}${new Date(x.at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
     ${x.note ? `<br><span class="note">“${esc(x.note)}”</span>` : ''}</div><span class="pill ${pill[st(x)] || ''}">${label[st(x)] || 'New'}</span></div>
     <div class="bkact">${['contacted', 'won', 'lost'].map(s2 => `<button class="btn ${s2 === 'won' ? 'btn-gold' : 'btn-line'} btn-sm" data-ls="${s2}" data-k="${x.kind}" data-at="${x.at}">${label[s2]}</button>`).join('')}
     ${x.phone ? `<a class="btn btn-line btn-sm" href="tel:${esc(x.phone)}">Call</a>` : ''}<button class="btn btn-line btn-sm" data-ls="delete" data-k="${x.kind}" data-at="${x.at}">Delete</button></div></div>`).join('')
@@ -290,14 +291,14 @@ function domain() {
   return `<div class="card"><h2>${esc(D.domain)}</h2><p id="dst"><span class="pill">Checking...</span></p>
     <p class="note">At the company where you bought <b>${esc(D.domain)}</b>, these settings must be in place:</p>
     <p class="note">1) A <b>CNAME</b> record. Name: <b>www</b>. Value: <b>sites.onewebonline.com</b><br>2) Forwarding from <b>${esc(D.domain)}</b> to <b>https://www.${esc(D.domain)}</b></p>
-    <p class="note">Changes can take a few hours to show up. Stuck? Text ${esc(D.textNumber || 'us')} the name of the company you bought it from.</p>
+    <p class="note">Changes can take a few hours to show up. Stuck? Email <a href="mailto:hello@onewebonline.com">hello@onewebonline.com</a> with the name of the company you bought it from and we'll walk you through it.</p>
     <button class="btn btn-line btn-sm" type="button" id="recheck">Check again</button></div>`;
 }
 function billing() {
   return `<div class="card"><h2>Billing</h2>
     <p class="note">Update your card, download invoices and receipts, or cancel hosting. This opens a secure Stripe page.</p>
     <button class="btn btn-gold" type="button" id="bill" ${D.billing ? '' : 'disabled'}>Manage billing</button>
-    ${D.billing ? '' : '<p class="note">Billing details aren\'t linked to this site yet. Text us and we\'ll send your receipt.</p>'}
+    ${D.billing ? '' : '<p class="note">Billing details aren\'t linked to this site yet. Email hello@onewebonline.com and we\'ll sort it out.</p>'}
     <p class="msg" id="bmsg" role="status" aria-live="polite"></p>
     <p class="note" style="margin-top:18px">See our <a href="/refund.html">refund policy</a> and <a href="/agreement.html">client agreement</a>.</p></div>`;
 }
@@ -398,7 +399,7 @@ const BIND = {
   billing() {
     const b = $('#bill'); if (!b) return;
     b.onclick = async () => { const m = $('#bmsg'); b.disabled = true; m.className = 'msg'; m.textContent = 'Opening Stripe...';
-      try { const r = await api({ op: 'billing' }); if (r.url) location.href = r.url; else { say(m, 'Billing is not available right now. Text us and we will help.'); b.disabled = false; } }
+      try { const r = await api({ op: 'billing' }); if (r.url) location.href = r.url; else { say(m, 'Billing is not available right now. Email hello@onewebonline.com and we will help.'); b.disabled = false; } }
       catch (e) { if (e.message !== 'auth') { say(m, 'Could not open billing. Try again.'); b.disabled = false; } } };
   },
 };
