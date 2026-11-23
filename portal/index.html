@@ -41,7 +41,7 @@ input[type=color]{height:46px;padding:4px}
 .note{color:var(--mut);font-size:14px}
 .msg{min-height:22px;font-size:14px;margin:10px 0 0}
 .msg.ok{color:var(--ok)}.msg.bad{color:var(--bad)}
-.pill{display:inline-block;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--bg3);color:var(--mut)}
+.pill{display:inline-block;white-space:nowrap;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--bg3);color:var(--mut)}
 .pill.ok{background:rgba(127,191,142,.15);color:var(--ok)}.pill.new{background:rgba(201,168,106,.18);color:var(--gold2)}.pill.bad{background:rgba(224,138,122,.15);color:var(--bad)}
 .photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
 .ph{position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:var(--bg3);aspect-ratio:4/3}
@@ -58,13 +58,33 @@ input[type=color]{height:46px;padding:4px}
 .hide{display:none!important}
 .top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
 .links{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:22px}
+body.in .wrap{max-width:1180px}
+.shell{display:grid;grid-template-columns:240px minmax(0,1fr);gap:36px;align-items:start}
+.side{position:sticky;top:64px;max-height:calc(100vh - 64px);overflow:auto;padding:22px 0 30px;border-right:1px solid var(--line);padding-right:18px}
+.side .who{padding:0 10px 14px;margin-bottom:6px;border-bottom:1px solid var(--line)}
+.side .who b{display:block;font-family:var(--serif);font-weight:400;font-size:22px;line-height:1.15;margin-bottom:6px}
+.grp{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--mut);padding:16px 10px 6px}
+.nv{display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:none;border:0;color:var(--txt);font:500 14px var(--sans);padding:9px 10px;border-radius:10px;cursor:pointer}
+.nv:hover{background:var(--bg3)}.nv.on{background:rgba(201,168,106,.16);color:var(--gold2)}
+.nv .cnt{margin-left:auto;background:var(--gold);color:#0a0a0a;font-size:11px;font-weight:700;border-radius:999px;padding:1px 7px}
+.nv .soon{margin-left:auto;font-size:10px;font-weight:600;color:var(--mut);border:1px solid var(--line);border-radius:999px;padding:1px 7px}
+.pmain{padding:4px 0 0;min-width:0}
+.crumb{font-size:12px;color:var(--mut);margin:26px 0 -24px;letter-spacing:.02em}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:16px}
+.tile{display:block;background:var(--bg2);border:1px solid var(--line);border-radius:16px;padding:16px;text-decoration:none;color:var(--txt)}.tile:hover{border-color:var(--gold)}
+.tile b{display:block;font-size:26px;font-weight:700}.tile span{color:var(--mut);font-size:13px}
+#menu{background:none;border:1px solid var(--line);color:var(--txt);border-radius:999px;padding:8px 14px;font:500 13px var(--sans);cursor:pointer}
+.scrim{display:none}
+@media (min-width:901px){#menu{display:none!important}}
+@media (max-width:900px){.shell{display:block}.side{position:fixed;z-index:20;top:0;left:0;bottom:0;width:280px;max-height:none;background:var(--bg);padding:18px 16px;border-right:1px solid var(--line);transform:translateX(-105%);transition:transform .2s}
+ body.navopen .side{transform:none}body.navopen .scrim{display:block;position:fixed;inset:0;z-index:15;background:rgba(0,0,0,.55)}.crumb{margin-top:20px}}
 footer{color:var(--mut);font-size:13px;padding:40px 0;border-top:1px solid var(--line);margin-top:40px}
 footer a{color:var(--mut)}
 @media (max-width:560px){.row{grid-template-columns:1fr}.hours .h{grid-template-columns:1fr 1fr}.hours .h button{grid-column:1/-1}h1{margin-top:26px}}
 </style>
 </head>
 <body>
-<header><div class="wrap"><a class="brand" href="/">One Web<span>.</span></a><button id="out" class="btn btn-line btn-sm hide" type="button">Log out</button></div></header>
+<header><div class="wrap"><div style="display:flex;gap:12px;align-items:center"><button id="menu" class="hide" type="button" aria-label="Open menu">☰ Menu</button><a class="brand" href="/">One Web<span>.</span></a></div><button id="out" class="btn btn-line btn-sm hide" type="button">Log out</button></div></header>
 
 <main class="wrap">
   <!-- login -->
@@ -100,13 +120,11 @@ footer a{color:var(--mut)}
   </section>
 
   <!-- app -->
-  <section id="app" class="hide">
-    <div class="top"><div><h1 id="biz">Your website</h1><p class="sub" id="status"></p></div></div>
-    <div class="links" id="links"></div>
-    <div id="setup"></div>
-    <nav class="tabs" id="tabs" aria-label="Portal sections"></nav>
-    <div id="view"></div>
-  </section>
+  <section id="app" class="hide"><div class="shell">
+    <aside class="side" id="side"><div class="who"><b id="sbiz">Your website</b><span id="sstat"></span></div><nav id="nav" aria-label="Portal sections"></nav></aside>
+    <div class="scrim" id="scrim"></div>
+    <div class="pmain" id="pmain"><p class="crumb" id="crumb"></p><div id="view"></div></div>
+  </div></section>
 </main>
 <footer><div class="wrap">One Web is a brand of Dolyn · <a href="/privacy.html">Privacy</a> · <a href="/terms.html">Terms</a> · <a href="/agreement.html">Client agreement</a> · <a href="/refund.html">Refunds</a></div></footer>
 
@@ -118,10 +136,10 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&a
 const ls = { get(k) { try { return sessionStorage.getItem(k) || localStorage.getItem(k); } catch (e) { return null; } },
   set(k, v, keep) { try { (keep ? localStorage : sessionStorage).setItem(k, v); } catch (e) {} },
   del(k) { try { sessionStorage.removeItem(k); localStorage.removeItem(k); } catch (e) {} } };
-let TOKEN = ls.get('ow_portal'), D = null, TAB = 'site', PHONE = '';
+let TOKEN = ls.get('ow_portal'), D = null, TAB = 'home', PHONE = '';
 // "Take a look" sample account (/portal/?demo). Same screens as the real portal; data stays in this page.
 const DEMO = /[?&]demo\b/.test(location.search) || location.hash === '#demo';
-try { TAB = (!DEMO && localStorage.getItem('ow_portal_tab')) || 'site'; } catch (e) {}
+try { TAB = (!DEMO && localStorage.getItem('ow_portal_tab')) || 'home'; } catch (e) {}
 
 async function api(body) {
   if (DEMO) return demoApi(body);
@@ -131,7 +149,7 @@ async function api(body) {
   if (j.error === 'auth') { logout(); throw new Error('auth'); }
   return j;
 }
-function showLogin() { $('#login').classList.remove('hide'); $('#app').classList.add('hide'); $('#out').classList.add('hide'); }
+function showLogin() { $('#login').classList.remove('hide'); $('#app').classList.add('hide'); $('#out').classList.add('hide'); $('#menu').classList.add('hide'); document.body.classList.remove('in', 'navopen'); }
 function logout() { if (DEMO) { location.href = '/'; return; } if (TOKEN) fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ op: 'logout', token: TOKEN }) }).catch(() => {}); TOKEN = null; ls.del('ow_portal'); showLogin(); }
 
 /* ---------- login ---------- */
@@ -155,6 +173,8 @@ $('#f2').onsubmit = async e => {
   } catch (err) { m.className = 'msg bad'; m.textContent = 'Could not reach the server. Try again.'; }
 };
 $('#out').onclick = logout;
+$('#menu').onclick = () => document.body.classList.toggle('navopen');
+$('#scrim').onclick = () => document.body.classList.remove('navopen');
 
 /* email login (backup when they can't get texts) */
 let EMAIL = '', TIMER = null, MODE = 'phone';
@@ -194,19 +214,52 @@ $('#e2').onsubmit = async e => {
 };
 
 /* ---------- app ---------- */
-const TABS = [['site', 'Website'], ['results', 'Results'], ['photos', 'Photos'], ['bookings', 'Leads'], ['reviews', 'Reviews'], ['content', 'Pages & guides'], ['domain', 'Domain'], ['billing', 'Billing']];
+// Sidebar, grouped like the owner dashboard. Each entry: [key, label]. Add new client features here (the sample account picks them up too).
+const NAV = [
+  ['', [['home', 'Overview']]],
+  ['Website', [['site', 'Business info'], ['look', 'Design'], ['photos', 'Photos & logo'], ['content', 'Pages & towns'], ['domain', 'Domain']]],
+  ['Communication', [['chat', 'AI chat assistant'], ['alerts', 'Bookings & alerts'], ['texting', 'Text us changes'], ['agents', 'AI phone agents']]],
+  ['Customers', [['bookings', 'Leads'], ['reviews', 'Reviews'], ['results', 'Results']]],
+  ['Account', [['account', 'Login'], ['billing', 'Billing']]]];
+const KEYS = NAV.flatMap(g => g[1].map(x => x[0]));
+if (!KEYS.includes(TAB)) TAB = 'home';
 async function load() {
   D = await api({ op: 'me' });
-  $('#login').classList.add('hide'); $('#app').classList.remove('hide'); $('#out').classList.remove('hide');
+  $('#login').classList.add('hide'); $('#app').classList.remove('hide'); $('#out').classList.remove('hide'); $('#menu').classList.remove('hide');
+  document.body.classList.add('in');
   render();
 }
+const siteCode = () => { const slug = (D.site.match(/^https?:\/\/([a-z0-9-]+)\.onewebonline\.com/) || [])[1] || ''; return slug ? (p => (p[0].slice(0, 10) + '-' + p[p.length - 1]).toUpperCase())(slug.split('-')) : ''; };
+const newLeads = () => (D.bookings || []).filter(b => !b.st).length + (D.leads || []).filter(b => !b.st).length;
+function go(t) { TAB = t; try { if (!DEMO) localStorage.setItem('ow_portal_tab', TAB); } catch (x) {} document.body.classList.remove('navopen'); render(); window.scrollTo(0, 0); }
 function render() {
   const f = D.fields;
-  $('#biz').textContent = f.name || 'Your website';
-  $('#status').innerHTML = D.live ? `<span class="pill ok">Live</span> &nbsp;${esc(D.site.replace(/^https:\/\//, ''))}` : `<span class="pill new">Not live yet</span> &nbsp;Add your photos and details, then publish when it looks right.`;
-  $('#links').innerHTML = `<a class="btn btn-line btn-sm" href="${esc(D.site)}" target="_blank" rel="noopener">View my site</a>` + (D.live ? '' : ` <button class="btn btn-gold btn-sm" type="button" id="pub">Publish my site</button>`);
-  const slug = (D.site.match(/^https?:\/\/([a-z0-9-]+)\.onewebonline\.com/) || [])[1] || '';
-  const code = slug ? (p => (p[0].slice(0, 10) + '-' + p[p.length - 1]).toUpperCase())(slug.split('-')) : '';
+  $('#sbiz').textContent = f.name || 'Your website';
+  $('#sstat').innerHTML = D.live ? '<span class="pill ok">Live</span>' : '<span class="pill new">Not live yet</span>';
+  const nb = newLeads();
+  $('#nav').innerHTML = NAV.map(([g, items]) => (g ? `<div class="grp">${g}</div>` : '') + items.map(([k, l]) =>
+    `<button class="nv ${TAB === k ? 'on' : ''}" data-t="${k}" type="button">${l}${k === 'bookings' && nb ? `<span class="cnt">${nb}</span>` : ''}${k === 'agents' ? '<span class="soon">Soon</span>' : ''}</button>`).join('')).join('');
+  document.querySelectorAll('.nv').forEach(b => b.onclick = () => go(b.dataset.t));
+  const cur = NAV.find(g => g[1].some(x => x[0] === TAB)); const lab = cur[1].find(x => x[0] === TAB)[1];
+  $('#crumb').textContent = cur[0] ? cur[0] + ' / ' + lab : '';
+  const html = ({ home, site, look, photos, content, domain, chat, alerts, texting, agents, bookings, reviews, results, account, billing }[TAB] || home)();
+  $('#view').innerHTML = /^\s*<h1/.test(html) ? html : head(lab) + html;
+  document.querySelectorAll('[data-go]').forEach(a => a.onclick = e => { e.preventDefault(); const t = a.dataset.go; if (t === 'publish') { const b = $('#pub'); if (b) b.click(); return; } go(t); });
+  const pb = $('#pub'); if (pb) pb.onclick = async () => { if (!confirm('Publish your site? It goes live for everyone (you can still edit it anytime).')) return; pb.disabled = true; try { D = await api({ op: 'publish' }); render(); } catch (e) { pb.disabled = false; } };
+  (BIND[TAB] || (() => {}))();
+}
+const say = (el, t, ok) => { el.className = 'msg ' + (ok ? 'ok' : 'bad'); el.textContent = t; };
+// save only the fields on this page (the server leaves everything else as is)
+async function saveFields(fields, ok) {
+  const m = $('#smsg'), btn = $('#save'); if (btn) btn.disabled = true; m.className = 'msg'; m.textContent = 'Saving...';
+  try { D = await api({ op: 'save', fields }); render(); say($('#smsg'), ok || 'Saved. Your site updates within a few minutes.', true); }
+  catch (err) { if (err.message !== 'auth') { say(m, 'Could not save. Try again.'); if (btn) btn.disabled = false; } }
+}
+const head = (t, s) => `<h1>${t}</h1>${s ? `<p class="sub">${s}</p>` : ''}`;
+const saveBtn = (t) => `<button class="btn btn-gold" type="submit" id="save">${t || 'Save changes'}</button><p class="msg" id="smsg" role="status" aria-live="polite"></p>`;
+
+function home() {
+  const f = D.fields, code = siteCode(), nb = newLeads();
   const steps = [
     ['photos', 'Add your logo and photos of your work', !!(D.logo || (D.photos || []).length)],
     ['site', 'Check your business info, services and hours', !!((f.services || []).length || Object.keys(f.hours || {}).length)],
@@ -214,23 +267,18 @@ function render() {
     ['domain', 'Connect your domain (optional)', !!D.domain],
     ['publish', 'Publish your site', !!D.live]];
   const left = steps.filter(x => !x[2]).length;
-  $('#setup').innerHTML = (D.live && !left ? '' : `<div class="card" style="margin-top:16px"><h2 style="margin-bottom:6px">${left ? 'Finish setting up' : 'All set'}</h2>
-      ${steps.map(([t, l, ok]) => `<div style="display:flex;gap:10px;align-items:center;padding:6px 0">${ok ? '<span class="pill ok">Done</span>' : '<span class="pill new">To do</span>'}<a href="#" data-go="${t}" style="color:inherit">${esc(l)}</a></div>`).join('')}</div>`)
-    + `<p class="note" style="margin:14px 0 0">Need a change or stuck? Reply to any of our texts or email <a href="mailto:hello@onewebonline.com">hello@onewebonline.com</a>${code ? ` with your site code <b>${esc(code)}</b>` : ''}. You can also just describe what you want changed and we'll do it.</p>`;
-  document.querySelectorAll('[data-go]').forEach(a => a.onclick = e => { e.preventDefault(); const t = a.dataset.go; if (t === 'publish') { const b = $('#pub'); if (b) b.click(); return; } TAB = t; try { localStorage.setItem('ow_portal_tab', TAB); } catch (x) {} render(); });
-  const pb = $('#pub'); if (pb) pb.onclick = async () => { if (!confirm('Publish your site? It goes live for everyone (you can still edit it anytime).')) return; pb.disabled = true; try { D = await api({ op: 'publish' }); render(); } catch (e) { pb.disabled = false; } };
-  const nb = (D.bookings || []).filter(b => !b.st).length + (D.leads || []).filter(b => !b.st).length;
-  $('#tabs').innerHTML = TABS.map(([k, l]) => `<button class="tab ${TAB === k ? 'on' : ''}" data-t="${k}" type="button">${l}${k === 'bookings' && nb ? ` (${nb})` : ''}</button>`).join('');
-  document.querySelectorAll('.tab').forEach(b => b.onclick = () => { TAB = b.dataset.t; try { localStorage.setItem('ow_portal_tab', TAB); } catch (e) {} render(); });
-  $('#view').innerHTML = ({ site, results, photos, bookings, reviews, content, domain, billing }[TAB] || site)();
-  (BIND[TAB] || (() => {}))();
+  const tile = (go, big, label) => `<a href="#" data-go="${go}" class="tile"><b>${big}</b><span>${label}</span></a>`;
+  return `${head(esc(f.name || 'Your website'), D.live ? `<span class="pill ok">Live</span> &nbsp;${esc((D.domain ? 'www.' + D.domain : D.site.replace(/^https:\/\//, '')))}` : '<span class="pill new">Not live yet</span> &nbsp;Add your photos and details, then publish when it looks right.')}
+  <div class="links"><a class="btn btn-line btn-sm" href="${esc(D.site)}" target="_blank" rel="noopener">View my site</a>${D.live ? '' : ' <button class="btn btn-gold btn-sm" type="button" id="pub">Publish my site</button>'}</div>
+  <div class="tiles">${tile('bookings', nb, nb === 1 ? 'new lead' : 'new leads')}${tile('chat', D.chatOn ? 'On' : 'Off', 'AI chat assistant')}${tile('alerts', f.bookingOn ? 'On' : 'Off', 'Online booking')}${tile('photos', (D.photos || []).length, 'photos on your site')}</div>
+  ${D.live && !left ? '' : `<div class="card"><h2 style="margin-bottom:6px">${left ? 'Finish setting up' : 'All set'}</h2>
+    ${steps.map(([t, l, ok]) => `<div style="display:flex;gap:10px;align-items:center;padding:6px 0">${ok ? '<span class="pill ok">Done</span>' : '<span class="pill new">To do</span>'}<a href="#" data-go="${t}" style="color:inherit">${esc(l)}</a></div>`).join('')}</div>`}
+  <p class="note">Need a change or stuck? Reply to any of our texts or email <a href="mailto:hello@onewebonline.com">hello@onewebonline.com</a>${code ? ` with your site code <b>${esc(code)}</b>` : ''}. You can also just describe what you want changed and we'll do it.</p>`;
 }
-const say = (el, t, ok) => { el.className = 'msg ' + (ok ? 'ok' : 'bad'); el.textContent = t; };
-
 function site() {
   const f = D.fields; const hrs = Object.entries(f.hours || {});
-  return `<form id="sf">
-  <div class="card"><h2>Business info</h2>
+  return `${head('Business info', 'What your site says about you. Changes show on your site within a few minutes.')}<form id="sf">
+  <div class="card"><h2>Basics</h2>
     <label>Business name<input name="name" value="${esc(f.name)}" maxlength="60"></label>
     <div class="row"><label>Phone shown on site<input name="phone" type="tel" value="${esc(f.phone)}"></label>
     <label>Address<input name="address" value="${esc(f.address)}" maxlength="120"></label></div>
@@ -246,25 +294,58 @@ function site() {
     <div class="hours" id="hrs">${(hrs.length ? hrs : [['Mon-Fri', ''], ['Sat', '']]).map(([d, t]) => hourRow(d, t)).join('')}</div>
     <button class="btn btn-line btn-sm" type="button" id="addh">Add a row</button>
   </div>
+  ${saveBtn()}</form>`;
+}
+const hourRow = (d, t) => `<div class="h"><input name="hd" value="${esc(d)}" placeholder="Mon-Fri" aria-label="Days"><input name="ht" value="${esc(t)}" placeholder="8am-6pm" aria-label="Hours"><button class="btn btn-line btn-sm" type="button" data-rmh>Remove</button></div>`;
+function look() {
+  const f = D.fields;
+  return `${head('Design', 'How your site looks. Leave these on "our pick" and we match your trade.')}<form id="lf">
   <div class="card"><h2>Look</h2>
     <div class="row"><label>Brand color<input name="brandColor" type="color" value="${esc(f.brandColor || '#c9a86a')}"></label>
     <label>Background<select name="theme"><option value="">Our pick for your trade</option>${[['dark', 'Dark'], ['light', 'Light'], ['warm', 'Warm']].map(([v, l]) => `<option value="${v}" ${f.theme === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
     <label>Font style<select name="fonts"><option value="">Our pick for your trade</option>${[['serif', 'Classic'], ['bold', 'Bold'], ['modern', 'Modern']].map(([v, l]) => `<option value="${v}" ${f.fonts === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
     <label class="toggle"><span>Keep my brand color<small>Uncheck to go back to the default color</small></span><input type="checkbox" name="useColor" ${f.brandColor ? 'checked' : ''}></label>
   </div>
-  <div class="card"><h2>Options</h2>
-    <label class="toggle"><span>Online booking<small>Customers can request a time on your site</small></span><input type="checkbox" name="bookingOn" ${f.bookingOn ? 'checked' : ''}></label>
-    <label style="margin-top:6px">Text booking alerts to<input name="alertPhone" type="tel" value="${esc(f.alertPhone)}"></label>
-    <label>Login email <span class="note">(where we send your login codes)</span><input name="email" type="email" value="${esc(f.email)}" autocomplete="email"></label>
-    <label class="toggle"><span>AI chat assistant<small>Answers visitors' questions 24/7 and sends you their name and number</small></span><input type="checkbox" name="chatOn" ${D.chatOn ? 'checked' : ''}></label>
+  <div class="card"><h2>On your site</h2>
     <label class="toggle"><span>Show Google reviews</span><input type="checkbox" name="showReviews" ${f.hideReviews ? '' : 'checked'}></label>
     <label class="toggle"><span>We're licensed &amp; insured<small>Only check this if it's true. It will show on your site.</small></span><input type="checkbox" name="licensed" ${f.licensed ? 'checked' : ''}></label>
   </div>
-  <button class="btn btn-gold" type="submit" id="save">Save changes</button>
-  <p class="msg" id="smsg" role="status" aria-live="polite"></p>
-  </form>`;
+  ${saveBtn()}</form>`;
 }
-const hourRow = (d, t) => `<div class="h"><input name="hd" value="${esc(d)}" placeholder="Mon-Fri" aria-label="Days"><input name="ht" value="${esc(t)}" placeholder="8am-6pm" aria-label="Hours"><button class="btn btn-line btn-sm" type="button" data-rmh>Remove</button></div>`;
+function chat() {
+  return `${head('AI chat assistant', 'A chat bubble on your site that answers visitors\' questions 24/7, using your real services, hours and towns.')}<form id="cf">
+  <div class="card"><label class="toggle"><span>AI chat assistant<small>When a visitor wants a quote or a call back, it asks for their name and number and sends them to you</small></span><input type="checkbox" name="chatOn" ${D.chatOn ? 'checked' : ''}></label></div>
+  <div class="card"><h2>What it does</h2><p class="note" style="margin:0">Answers questions about your services, hours and the towns you serve. Never makes up prices or promises. Every conversation where someone leaves their details shows up under <a href="#" data-go="bookings">Leads</a>, and you get an email or text right away. To change what it knows, update your <a href="#" data-go="site">Business info</a>.</p></div>
+  ${saveBtn()}</form>`;
+}
+function alerts() {
+  const f = D.fields;
+  return `${head('Bookings & alerts', 'Let customers request a time on your site, and choose where we send the alert.')}<form id="af2">
+  <div class="card"><label class="toggle"><span>Online booking<small>Customers can request a time on your site</small></span><input type="checkbox" name="bookingOn" ${f.bookingOn ? 'checked' : ''}></label>
+    <label style="margin-top:10px">Text booking and lead alerts to<input name="alertPhone" type="tel" value="${esc(f.alertPhone)}" placeholder="(555) 123-4567"></label></div>
+  ${saveBtn()}</form>`;
+}
+function texting() {
+  const code = siteCode();
+  return `${head('Text us changes', 'No need to log in for small changes. Text us like you would text a person.')}
+  <div class="card"><h2>How it works</h2><p class="note" style="margin-top:-6px">Reply to any text from One Web with what you want changed. Our assistant makes the change on your site and texts you back. If you text from a different phone, include your site code${code ? ` <b>${esc(code)}</b>` : ''}.</p>
+    <p style="margin:0 0 6px">Things you can text:</p>
+    <ul class="note" style="margin:0;padding-left:18px"><li>"Change our hours to Mon-Fri 7am-5pm, Sat 8am-noon"</li><li>"Add water heater installation to my services"</li><li>"Make the headline: Same-day plumbing in Springfield"</li><li>A photo of your work or your logo</li><li>"Our domain is yourbusiness.com"</li></ul></div>
+  <div class="card"><h2>Prefer email?</h2><p class="note" style="margin:0">Email <a href="mailto:hello@onewebonline.com">hello@onewebonline.com</a>${code ? ` with your site code <b>${esc(code)}</b>` : ''}.</p></div>`;
+}
+function agents() {
+  const a = (t, d) => `<div class="card"><div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><h2 style="margin:0 0 6px">${t}</h2><span class="pill new">Coming soon</span></div><p class="note" style="margin:0">${d}</p></div>`;
+  return `${head('AI phone agents', 'AI that answers and makes calls for your business. Not available yet: we\'ll let you know the day it is.')}
+  ${a('Receptionist', 'Answers the calls you miss, gets the customer\'s name, number and what they need, and texts you the details.')}
+  ${a('Booker', 'Books the job straight into your schedule while the customer is still on the phone.')}
+  ${a('Follow-up', 'Calls or texts back people who asked for a quote, so leads don\'t go cold.')}`;
+}
+function account() {
+  const f = D.fields;
+  return `${head('Login', 'How you log in to this portal.')}<form id="acf">
+  <div class="card"><label>Login email <span class="note">(where we send your 6-digit login codes)</span><input name="email" type="email" value="${esc(f.email)}" autocomplete="email"></label></div>
+  ${saveBtn()}</form>`;
+}
 
 function photos() {
   const p = D.photos || [];
@@ -292,7 +373,7 @@ function bookings() {
     ${x.note ? `<br><span class="note">“${esc(x.note)}”</span>` : ''}</div><span class="pill ${pill[st(x)] || ''}">${label[st(x)] || 'New'}</span></div>
     <div class="bkact">${['contacted', 'won', 'lost'].map(s2 => `<button class="btn ${s2 === 'won' ? 'btn-gold' : 'btn-line'} btn-sm" data-ls="${s2}" data-k="${x.kind}" data-at="${x.at}">${label[s2]}</button>`).join('')}
     ${x.phone ? `<a class="btn btn-line btn-sm" href="tel:${esc(x.phone)}">Call</a>` : ''}<button class="btn btn-line btn-sm" data-ls="delete" data-k="${x.kind}" data-at="${x.at}">Delete</button></div></div>`).join('')
-  : `<div class="card note">No leads yet. ${D.fields.bookingOn ? 'They will show up here.' : 'Online booking is off. Turn it on in the Website tab.'}</div>`}`;
+  : `<div class="card note">No leads yet. ${D.fields.bookingOn ? 'They will show up here.' : 'Online booking is off. Turn it on in <a href="#" data-go="alerts">Bookings &amp; alerts</a>.'}</div>`}`;
 }
 function reviews() {
   const sent = D.reviewsSent || [];
@@ -461,21 +542,21 @@ const BIND = {
     $('#addh').onclick = () => { $('#hrs').insertAdjacentHTML('beforeend', hourRow('', '')); bindRm(); };
     const bindRm = () => document.querySelectorAll('[data-rmh]').forEach(b => b.onclick = () => b.parentNode.remove());
     bindRm();
-    $('#sf').onsubmit = async e => {
-      e.preventDefault(); const F = e.target, m = $('#smsg'), btn = $('#save');
+    $('#sf').onsubmit = e => {
+      e.preventDefault(); const F = e.target;
       const hours = {}; document.querySelectorAll('#hrs .h').forEach(r => { const d = r.querySelector('[name=hd]').value.trim(), t = r.querySelector('[name=ht]').value.trim(); if (d && t) hours[d] = t; });
-      const fields = { name: F.name.value, phone: F.phone.value, address: F.address.value, headline: F.headline.value, lead: F.lead.value,
-        services: [...F.querySelectorAll('[name=svc]')].map((i, k) => { const n = i.value.trim().replace(/:/g, ' '), d = ((F.querySelectorAll('[name=svcd]')[k] || {}).value || '').trim(); return n ? (d ? n + ': ' + d : n) : ''; }).filter(Boolean), hours,
-        brandColor: F.useColor.checked ? F.brandColor.value : '', theme: F.theme.value, fonts: F.fonts.value,
-        bookingOn: F.bookingOn.checked, chatOn: F.chatOn.checked, hideReviews: !F.showReviews.checked, licensed: F.licensed.checked };
-      if (F.alertPhone.value.trim()) fields.alertPhone = F.alertPhone.value;
-      if (F.email.value.trim()) fields.email = F.email.value;
-      btn.disabled = true; m.className = 'msg'; m.textContent = 'Saving...';
-      try { D = await api({ op: 'save', fields }); render(); say($('#smsg'), 'Saved. Your site updates within a few minutes.', true); }
-      catch (err) { if (err.message !== 'auth') { say(m, 'Could not save. Try again.'); btn.disabled = false; } }
+      saveFields({ name: F.name.value, phone: F.phone.value, address: F.address.value, headline: F.headline.value, lead: F.lead.value,
+        services: [...F.querySelectorAll('[name=svc]')].map((i, k) => { const n = i.value.trim().replace(/:/g, ' '), d = ((F.querySelectorAll('[name=svcd]')[k] || {}).value || '').trim(); return n ? (d ? n + ': ' + d : n) : ''; }).filter(Boolean), hours });
     };
-    $('#sf').addEventListener('input', e => { if (e.target.name === 'brandColor') e.target.form.useColor.checked = true; });
   },
+  look() {
+    $('#lf').onsubmit = e => { e.preventDefault(); const F = e.target;
+      saveFields({ brandColor: F.useColor.checked ? F.brandColor.value : '', theme: F.theme.value, fonts: F.fonts.value, hideReviews: !F.showReviews.checked, licensed: F.licensed.checked }); };
+    $('#lf').addEventListener('input', e => { if (e.target.name === 'brandColor') e.target.form.useColor.checked = true; });
+  },
+  chat() { $('#cf').onsubmit = e => { e.preventDefault(); saveFields({ chatOn: e.target.chatOn.checked }, e.target.chatOn.checked ? 'Saved. The chat assistant is on your site.' : 'Saved. The chat assistant is off.'); }; },
+  alerts() { $('#af2').onsubmit = e => { e.preventDefault(); const F = e.target, fields = { bookingOn: F.bookingOn.checked }; if (F.alertPhone.value.trim()) fields.alertPhone = F.alertPhone.value; saveFields(fields, 'Saved.'); }; },
+  account() { $('#acf').onsubmit = e => { e.preventDefault(); const v = e.target.email.value.trim(); if (!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(v)) { say($('#smsg'), 'Enter a valid email.'); return; } saveFields({ email: v }, 'Saved. Your next login code goes to ' + v + '.'); }; },
   photos() {
     const send = async body => { const m = $('#pmsg'); m.className = 'msg'; m.textContent = 'Saving...'; try { D = await api(Object.assign({ op: 'photos' }, body)); render(); say($('#pmsg'), 'Saved.', true); } catch (e) { if (e.message !== 'auth') say(m, 'Could not save. Try again.'); } };
     document.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { if (!confirm('Remove this photo from your site?')) return; const p = D.photos.slice(); p.splice(+b.dataset.rm, 1); send({ photos: p }); });
@@ -518,7 +599,7 @@ const BIND = {
   },
 };
 
-(async () => { if (DEMO) { TOKEN = 'demo'; $('#out').textContent = 'Exit sample'; $('#app').insertAdjacentHTML('afterbegin', '<div class="card" style="margin-top:18px;border-color:var(--gold)"><b>This is a sample account.</b> <span class="note">It\'s exactly what our clients see. Click around and change anything: nothing is saved or sent, and the business and numbers are made up.</span><div class="links" style="margin:12px 0 0"><a class="btn btn-gold btn-sm" href="/#contact">Get my website</a><a class="btn btn-line btn-sm" href="/">Back to One Web</a></div></div>'); return load(); }
+(async () => { if (DEMO) { TOKEN = 'demo'; $('#out').textContent = 'Exit sample'; $('#pmain').insertAdjacentHTML('afterbegin', '<div class="card" style="margin-top:18px;border-color:var(--gold)"><b>This is a sample account.</b> <span class="note">It\'s exactly what our clients see. Click around and change anything: nothing is saved or sent, and the business and numbers are made up.</span><div class="links" style="margin:12px 0 0"><a class="btn btn-gold btn-sm" href="/#contact">Get my website</a><a class="btn btn-line btn-sm" href="/">Back to One Web</a></div></div>'); return load(); }
   if (!TOKEN) return showLogin(); try { await load(); } catch (e) { if (e.message !== 'auth') { showLogin(); say($('#lmsg'), 'Could not reach the server. Refresh to try again.'); } } })();
 </script>
 </body>
