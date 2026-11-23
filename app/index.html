@@ -242,7 +242,12 @@ function drillList(k, days) {   // the people behind one card, for the chosen da
     return { note: k === 'calls' ? 'Calls where Emma talked to someone (voicemail drops and no-answers are counted on the card but not listed one by one).' : 'Everyone Emma had a conversation with.', head: ['When', 'Business', 'Phone', 'Outcome'],
       rows: list.map(c => row(when(c.at), `${esc(c.name || '')}${c.owner ? `<br><span class="note">${esc(c.owner)}</span>` : ''}${c.city ? ' <span class="note">· ' + esc(c.city) + '</span>' : ''}`, ph(c.phone), `${esc(OUT[c.outcome] || c.outcome || '')}${c.secs ? ' <span class="note">· ' + c.secs + 's</span>' : ''}`)) };
   }
-  if (['voicemails', 'scraped', 'landlines'].includes(k)) return { note: k === 'voicemails' ? 'Voicemail drops are only stored as daily totals, so there is no list of names for this one.' : 'Scraped leads are counted per run; the lead lists themselves live in the lead cleaner.', head: [], rows: [] };
+  if (k === 'voicemails') {
+    const list = ((DSTATS || {}).vm || []).filter(v => inR(v.at)).sort((x, y) => y.at - x.at);
+    return { note: list.length ? list.length + ' voicemails left (names are recorded from Nov 23, 2026 on; older days only have totals).' : 'No voicemails with names in this range. Names are recorded from Nov 23, 2026 on; older days only have totals.', head: ['When', 'Business', 'Phone', 'Owner'],
+      rows: list.map(v => row(when(v.at), esc(v.n || 'Unknown') + (v.c ? ' <span class="note">· ' + esc(v.c) + '</span>' : ''), ph(v.p), esc(v.o || ''))) };
+  }
+  if ((k === 'scraped' || k === 'landlines') && !(STATE.items || []).some(i => i.k === k && inR(i.t))) return { note: 'Scrape details are recorded from Nov 23, 2026 on. Your next scrape run will show up here' + (k === 'scraped' ? ' (one row per run, with what was filtered out).' : ' (every business that made it through, ready to call).'), head: [], rows: [] };
   const list = (STATE.items || []).filter(i => i.k === k && inR(i.t));
   const total = k === 'revenue' ? ' · total ' + money(list.reduce((a, i) => a + (i.amt || 0), 0)) : '';
   return { note: list.length + (list.length === 1 ? ' entry' : ' entries') + total, head: ['When', 'Business', 'Phone', k === 'revenue' ? 'Amount' : 'Details'],
