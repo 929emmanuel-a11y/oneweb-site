@@ -370,7 +370,7 @@ function bookings() {
   <div class="links">${['New', 'Contacted', 'Won', 'Lost'].map(k => `<span class="pill ${k === 'Won' ? 'ok' : k === 'Lost' ? 'bad' : k === 'New' ? 'new' : ''}">${k}: ${counts[k] || 0}</span>`).join(' ')}</div>
   ${items.length ? items.map(x => `<div class="card"><div class="bk"><div><b>${esc(x.name || 'No name')}</b> <span class="pill">${x.kind === 'chat' ? 'Chat' : 'Booking'}</span><br>
     <span class="note">${x.phone ? `<a href="tel:${esc(x.phone)}">${esc(fmtPhone(x.phone))}</a> · ` : ''}${x.email ? `<a href="mailto:${esc(x.email)}">${esc(x.email)}</a> · ` : ''}${x.service ? esc(x.service) + ' · ' : ''}${(x.date || x.time) ? 'wants ' + esc([x.date, x.time].filter(Boolean).join(', ')) + ' · ' : ''}${new Date(x.at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
-    ${x.note ? `<br><span class="note">“${esc(x.note)}”</span>` : ''}</div><span class="pill ${pill[st(x)] || ''}">${label[st(x)] || 'New'}</span></div>
+    ${x.note ? `<br><span class="note">“${esc(x.note)}”</span>` : ''}${st(x) === 'won' ? `<br><span class="note">⭐ ${x.rq ? (x.rq > Date.now() ? 'Google review request emails them ' + new Date(x.rq).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) : 'Google review request sent') : x.email ? 'Google review request goes out in 2 days' : 'No email on file, so no automatic review request. You can send one from Reviews.'}</span>` : ''}</div><span class="pill ${pill[st(x)] || ''}">${label[st(x)] || 'New'}</span></div>
     <div class="bkact">${['contacted', 'won', 'lost'].map(s2 => `<button class="btn ${s2 === 'won' ? 'btn-gold' : 'btn-line'} btn-sm" data-ls="${s2}" data-k="${x.kind}" data-at="${x.at}">${label[s2]}</button>`).join('')}
     ${x.phone ? `<a class="btn btn-line btn-sm" href="tel:${esc(x.phone)}">Call</a>` : ''}<button class="btn btn-line btn-sm" data-ls="delete" data-k="${x.kind}" data-at="${x.at}">Delete</button></div></div>`).join('')
   : `<div class="card note">No leads yet. ${D.fields.bookingOn ? 'They will show up here.' : 'Online booking is off. Turn it on in <a href="#" data-go="alerts">Bookings &amp; alerts</a>.'}</div>`}`;
@@ -379,11 +379,12 @@ function reviews() {
   const sent = D.reviewsSent || [];
   return `<div class="card"><h2>Ask for a Google review</h2>
     <p class="note" style="margin-top:-6px">After a job, send your customer a short, friendly email with a link straight to your Google review page. Each customer is only asked once.</p>
+    <p class="note">Automatic: when you mark a lead <b>Won</b> in Leads and they left an email, we email them your review link 2 days later.</p>
     <form id="rf"><div class="row"><label>Customer first name<input name="name" maxlength="60" autocomplete="off"></label><label>Customer email<input name="email" type="email" autocomplete="off" required></label></div>
     <button class="btn btn-gold" type="submit">Send review request</button><p class="msg" id="rmsg" role="status" aria-live="polite"></p></form></div>
     <div class="card"><h2>Your review link</h2><p class="note" style="margin-top:-6px">${D.reviewUrl ? 'This is where customers land. Change it if you have a different Google review link.' : 'Paste your Google review link (Google Business Profile, then "Ask for reviews").'}</p>
     <form id="ruf"><label>Google review link<input name="reviewUrl" value="${esc(D.reviewUrl || '')}" placeholder="https://g.page/r/.../review"></label><button class="btn btn-line btn-sm" type="submit">Save link</button></form></div>
-    ${sent.length ? `<div class="card"><h2>Sent (${sent.length})</h2>${sent.map(r => `<p class="note" style="margin:4px 0">${esc(r.name || '')} · ${esc(r.email)} · ${new Date(r.at).toLocaleDateString()}</p>`).join('')}</div>` : ''}`;
+    ${sent.length ? `<div class="card"><h2>Sent (${sent.length})</h2>${sent.map(r => `<p class="note" style="margin:4px 0">${esc(r.name || '')} · ${esc(r.email)} · ${new Date(r.at).toLocaleDateString()}${r.auto ? ' · automatic' : ''}</p>`).join('')}</div>` : ''}`;
 }
 let RS = null;
 function results() {
