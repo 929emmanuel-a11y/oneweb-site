@@ -119,9 +119,12 @@ const ls = { get(k) { try { return sessionStorage.getItem(k) || localStorage.get
   set(k, v, keep) { try { (keep ? localStorage : sessionStorage).setItem(k, v); } catch (e) {} },
   del(k) { try { sessionStorage.removeItem(k); localStorage.removeItem(k); } catch (e) {} } };
 let TOKEN = ls.get('ow_portal'), D = null, TAB = 'site', PHONE = '';
-try { TAB = localStorage.getItem('ow_portal_tab') || 'site'; } catch (e) {}
+// "Take a look" sample account (/portal/?demo). Same screens as the real portal; data stays in this page.
+const DEMO = /[?&]demo\b/.test(location.search) || location.hash === '#demo';
+try { TAB = (!DEMO && localStorage.getItem('ow_portal_tab')) || 'site'; } catch (e) {}
 
 async function api(body) {
+  if (DEMO) return demoApi(body);
   const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({ token: TOKEN }, body)) });
   if (!r.ok) throw new Error('server');
   const j = await r.json();
@@ -129,7 +132,7 @@ async function api(body) {
   return j;
 }
 function showLogin() { $('#login').classList.remove('hide'); $('#app').classList.add('hide'); $('#out').classList.add('hide'); }
-function logout() { if (TOKEN) fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ op: 'logout', token: TOKEN }) }).catch(() => {}); TOKEN = null; ls.del('ow_portal'); showLogin(); }
+function logout() { if (DEMO) { location.href = '/'; return; } if (TOKEN) fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ op: 'logout', token: TOKEN }) }).catch(() => {}); TOKEN = null; ls.del('ow_portal'); showLogin(); }
 
 /* ---------- login ---------- */
 $('#f1').onsubmit = async e => {
@@ -392,6 +395,7 @@ async function uploadFiles(files, kind) {
 
 async function domainCheck() {
   const el = $('#dst'); if (!el) return;
+  if (DEMO) { el.innerHTML = '<span class="pill new">Almost there</span> In your account we check this for you live and tell you when it\'s connected.'; return; }
   const q = async (name, type) => { const r = await fetch(`https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(name)}&type=${type}`, { headers: { accept: 'application/dns-json' } }); return (await r.json()).Answer || []; };
   try {
     const c = await q('www.' + D.domain, 'CNAME');
@@ -402,6 +406,54 @@ async function domainCheck() {
       : pointed ? '<span class="pill new">Almost there</span> Your DNS is set. The secure certificate is being issued, usually within an hour.'
       : '<span class="pill bad">Not connected yet</span> The CNAME record below is missing or not showing up yet.';
   } catch (e) { el.innerHTML = '<span class="pill">Could not check right now</span>'; }
+}
+
+/* ---------- sample account ("Take a look") ----------
+   Mirrors the real portal: same tabs, same screens, same code. Only api() answers come from here.
+   When you add a new portal op on the server, add a sample answer for it below too. */
+const DAY = 864e5, NOW = Date.now();
+const DEMO_SITE = 'https://northside-plumbing-demo.onewebonline.com';
+let DD = null;
+function demoData() {
+  DD = { site: DEMO_SITE, live: true, domain: '', billing: true, chatOn: true, logo: '', photos: [], reviewUrl: 'https://g.page/r/sample/review', reviewsSent: [],
+    fields: { name: 'Northside Plumbing Co.', phone: '(217) 555-0142', address: 'Springfield, IL', headline: 'Fast, honest plumbing in Springfield', lead: 'Leaks, clogs and water heaters fixed right the first time. Upfront prices, clean work, same-day service most days.',
+      services: ['Drain cleaning: Kitchen, bath and main lines cleared fast', 'Water heaters: Repair and same-day replacement, tank or tankless', 'Leak repair: Find and fix hidden leaks before they do damage', 'Toilet repair: Running, clogged or leaking toilets fixed', 'Sewer line: Camera inspection and repair', 'Emergency service: Burst pipes and backups, nights and weekends'],
+      hours: { 'Mon-Fri': '7am-6pm', 'Sat': '8am-1pm' }, brandColor: '', theme: '', fonts: '', bookingOn: true, alertPhone: '(217) 555-0142', email: 'owner@example.com', hideReviews: false, licensed: true, areas: ['Springfield', 'Chatham', 'Sherman'] },
+    bookings: [
+      { at: NOW - 2 * 36e5, name: 'Dana R.', phone: '+12175550188', service: 'Water heaters', date: 'Thursday', time: 'Morning', note: 'No hot water since last night.' },
+      { at: NOW - 2 * DAY, name: 'Marcus T.', phone: '+12175550163', email: 'marcus@example.com', service: 'Drain cleaning', date: 'Saturday', time: '9am', st: 'won' }],
+    leads: [
+      { at: NOW - 5 * 36e5, name: 'Priya S.', phone: '+12175550119', note: 'Asked about a kitchen sink that drains slowly. Wants a call after 5pm.' },
+      { at: NOW - 4 * DAY, name: 'Tom W.', phone: '+12175550175', note: 'Asked if you do sewer camera inspections.', st: 'contacted' }] };
+  const daily = []; for (let i = 29; i >= 0; i--) { const d = new Date(NOW - i * DAY); const v = Math.round(9 + 6 * Math.sin(i / 3) + (29 - i) / 3 + (i * 7 % 5)); daily.push({ d: d.toLocaleDateString(), v, c: Math.round(v / 9) }); }
+  DD.rs = { live: true, domain: 'northsideplumbing.com', views30: daily.reduce((a, x) => a + x.v, 0), views7: daily.slice(-7).reduce((a, x) => a + x.v, 0), calls30: daily.reduce((a, x) => a + x.c, 0), calls7: daily.slice(-7).reduce((a, x) => a + x.c, 0), daily, gsc: { st: 'ok' },
+    rep: { clicks: 57, impr: 1840, pos: 8.4, from: new Date(NOW - 10 * DAY).toLocaleDateString(), to: new Date(NOW - 3 * DAY).toLocaleDateString(),
+      top: [{ q: 'plumber springfield il', c: 19, i: 520 }, { q: 'water heater repair near me', c: 14, i: 410 }, { q: 'drain cleaning springfield', c: 11, i: 300 }, { q: 'emergency plumber chatham il', c: 8, i: 190 }] } };
+  DD.posts = [
+    { slug: 'area-chatham', kind: 'area', town: 'Chatham', title: 'Plumber in Chatham, IL', desc: 'Drain cleaning, water heaters and leak repair for homes in Chatham.', st: 'scheduled', pub: NOW + 2 * DAY },
+    { slug: 'water-heater-repair-or-replace', kind: 'post', title: 'Repair or replace your water heater? 5 signs to watch for', desc: 'A plain-English guide for Springfield homeowners.', st: 'review' }];
+}
+const demoMe = () => { const o = JSON.parse(JSON.stringify(DD)); delete o.rs; delete o.posts; return o; };
+async function demoApi(b) {
+  if (!DD) demoData();
+  await new Promise(r => setTimeout(r, 250));
+  const F = DD.fields;
+  switch (b.op) {
+    case 'me': return demoMe();
+    case 'save': if (b.fields.chatOn !== undefined) { DD.chatOn = !!b.fields.chatOn; delete b.fields.chatOn; } if (b.fields.reviewUrl !== undefined) { DD.reviewUrl = b.fields.reviewUrl; delete b.fields.reviewUrl; } Object.assign(F, b.fields); return demoMe();
+    case 'publish': DD.live = true; return demoMe();
+    case 'photos': if (b.photos) DD.photos = b.photos; if (b.logo !== undefined) DD.logo = b.logo; return demoMe();
+    case 'upload': if (b.kind === 'logo') DD.logo = 'data:' + b.ctype + ';base64,' + b.data; else DD.photos.push('data:' + b.ctype + ';base64,' + b.data); return { ok: true };
+    case 'booking_set': case 'lead_set': { const L = DD[b.op === 'lead_set' ? 'leads' : 'bookings']; const i = L.findIndex(x => x.at === b.at); if (i >= 0) { if (b.status === 'delete') L.splice(i, 1); else L[i].st = b.status; } return demoMe(); }
+    case 'review_request': if (!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(b.email || '')) return { ok: false, error: 'email' }; DD.reviewsSent.unshift({ name: b.name, email: b.email, at: Date.now() }); return demoMe();
+    case 'results': return DD.rs;
+    case 'content': return { areas: F.areas, live: DD.live, posts: DD.posts };
+    case 'areas_save': F.areas = String(b.areas || '').split(',').map(x => x.trim()).filter(Boolean).slice(0, 20); return { areas: F.areas };
+    case 'post_set': { const i = DD.posts.findIndex(p => p.slug === b.post); if (i >= 0) { if (b.action === 'delete') DD.posts.splice(i, 1); else DD.posts[i].st = 'live'; } return { ok: true }; }
+    case 'domain': { const d = String(b.domain || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, ''); if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(d)) return { ok: false }; DD.domain = d; return demoMe(); }
+    case 'billing': return { url: '' };
+    default: return demoMe();
+  }
 }
 
 const BIND = {
@@ -461,12 +513,13 @@ const BIND = {
   billing() {
     const b = $('#bill'); if (!b) return;
     b.onclick = async () => { const m = $('#bmsg'); b.disabled = true; m.className = 'msg'; m.textContent = 'Opening Stripe...';
-      try { const r = await api({ op: 'billing' }); if (r.url) location.href = r.url; else { say(m, 'Billing is not available right now. Email hello@onewebonline.com and we will help.'); b.disabled = false; } }
+      try { const r = await api({ op: 'billing' }); if (r.url) location.href = r.url; else { say(m, DEMO ? 'In your account, this opens your secure Stripe page to update your card, get receipts or cancel.' : 'Billing is not available right now. Email hello@onewebonline.com and we will help.'); b.disabled = false; } }
       catch (e) { if (e.message !== 'auth') { say(m, 'Could not open billing. Try again.'); b.disabled = false; } } };
   },
 };
 
-(async () => { if (!TOKEN) return showLogin(); try { await load(); } catch (e) { if (e.message !== 'auth') { showLogin(); say($('#lmsg'), 'Could not reach the server. Refresh to try again.'); } } })();
+(async () => { if (DEMO) { TOKEN = 'demo'; $('#out').textContent = 'Exit sample'; $('#app').insertAdjacentHTML('afterbegin', '<div class="card" style="margin-top:18px;border-color:var(--gold)"><b>This is a sample account.</b> <span class="note">It\'s exactly what our clients see. Click around and change anything: nothing is saved or sent, and the business and numbers are made up.</span><div class="links" style="margin:12px 0 0"><a class="btn btn-gold btn-sm" href="/#contact">Get my website</a><a class="btn btn-line btn-sm" href="/">Back to One Web</a></div></div>'); return load(); }
+  if (!TOKEN) return showLogin(); try { await load(); } catch (e) { if (e.message !== 'auth') { showLogin(); say($('#lmsg'), 'Could not reach the server. Refresh to try again.'); } } })();
 </script>
 </body>
 </html>
