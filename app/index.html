@@ -123,7 +123,8 @@ const NAVG = [
   ['', [['overview','Overview'],['insights','Insights']]],
   ['Sales', [['convos','Conversations'],['bookings','Sales calls'],['results','Call results']]],
   ['Communication', [['voice','AI caller & dialer'],['closer','AI texter (closer)'],['pricing','Pricing & offers'],['test','Test chat']]],
-  ['Clients', [['clients','Clients'],['reviews','Testimonials']]]];
+  ['Clients', [['clients','Clients'],['reviews','Testimonials']]],
+  ['Money', [['expenses','Expenses']]]];
 const TABS = NAVG.flatMap(g => g[1]);
 let AUTH = null, STATE = null, TAB = 'overview', DRAFT = null, SEL = null, DIRTY = false;
 const $ = s => document.querySelector(s);
@@ -156,7 +157,7 @@ function nav(){
   $('#nav').innerHTML = h; $('#mnav').innerHTML = h;
   document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { TAB = b.dataset.t; render(); });
 }
-function render(){ nav(); const f = { overview, insights, convos, closer, pricing, reviews, bookings, results, clients, voice, test }[TAB]; $('#main').innerHTML = f(); bind(); }
+function render(){ nav(); const f = { overview, insights, expenses, convos, closer, pricing, reviews, bookings, results, clients, voice, test }[TAB]; $('#main').innerHTML = f(); bind(); }
 
 function dialToday(){
   const d = DSTATS || {}, t = d.today || {}, o = (d.outcomes || {})[t.date] || {};
@@ -180,7 +181,7 @@ let RANGE = 'today', HIDE = {}, LOGY = false, CFROM = '', CTO = '', DRILL = null
 try { RANGE = localStorage.getItem('ow_range') || 'today'; HIDE = JSON.parse(localStorage.getItem('ow_hide') || '{}'); LOGY = localStorage.getItem('ow_logy') === '1'; CFROM = localStorage.getItem('ow_cfrom') || ''; CTO = localStorage.getItem('ow_cto') || ''; } catch (e) {}
 const etKey = ts => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ts));
 const etHour = ts => Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', hourCycle: 'h23' }).format(new Date(ts)));
-const money = n => '$' + Math.round(n || 0).toLocaleString();
+const money = n => { n = Math.round((n || 0) * 100) / 100; return '$' + n.toLocaleString(undefined, { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 }); };
 function dayData(d) {   // one Eastern day: closer/lead numbers + dialer outcomes
   const s = Object.assign({}, (STATE.series || {})[d] || {}), o = ((DSTATS || {}).outcomes || {})[d];
   if (o) { s.calls = (o.answered || 0) + (o.noAnswer || 0) + (o.busy || 0) + (o.failed || 0); s.voicemails = o.voicemail || 0; s.talked = o.human || 0; }
@@ -376,6 +377,114 @@ function bindInsights() {
   document.querySelectorAll('[data-eye]').forEach(b => b.onclick = () => { SHOWPH[b.dataset.eye] = !SHOWPH[b.dataset.eye]; render(); });
   document.querySelectorAll('[data-open]').forEach(b => b.onclick = () => { OPENL[b.dataset.open] = !OPENL[b.dataset.open]; render(); });
   document.querySelectorAll('[data-ir]').forEach(b => b.onclick = () => { IRANGE = b.dataset.ir; try { localStorage.setItem('ow_irange', IRANGE); } catch (e) {} render(); });
+}
+
+/* ---------- Expenses: card statements (CSV upload) + bank feed, AI-labeled ---------- */
+const SYNC = 'https://n8n-production-9be3db1c.up.railway.app/webhook/oneweb-bank-sync-jkc4br';
+let EXR = 'month', IMP = null, EXQ = '', EXSHOW = 'biz';
+function csvParse(text) {   // handles quotes, commas and line breaks inside quotes
+  const rows = []; let row = [], f = '', q = false;
+  for (let i = 0; i < text.length; i++) { const c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { f += '"'; i++; } else q = false; } else f += c; }
+    else if (c === '"') q = true; else if (c === ',') { row.push(f); f = ''; } else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(f); f = ''; if (row.some(x => x.trim())) rows.push(row); row = []; } else f += c; }
+  row.push(f); if (row.some(x => x.trim())) rows.push(row); return rows;
+}
+const num = s => { s = String(s || '').trim(); if (!s) return NaN; const neg = /^\(.*\)$/.test(s) || /^-/.test(s.replace(/[$\s]/g, '')); const n = Number(s.replace(/[^0-9.]/g, '')); return neg ? -n : n; };
+function toISO(s) { s = String(s || '').trim(); let m;
+  if ((m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/))) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+  if ((m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/))) { const y = m[3].length === 2 ? '20' + m[3] : m[3]; return `${y}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`; }
+  const d = new Date(s); return isNaN(d) ? '' : d.toISOString().slice(0, 10); }
+function readStatement(text) {   // works for Chase, Citi, Capital One and most bank/card CSV exports
+  const rows = csvParse(text.replace(/^﻿/, '')); if (rows.length < 2) return { err: 'That file has no rows.' };
+  let hi = rows.findIndex(r => r.some(c => /date/i.test(c)) && r.some(c => /amount|debit|credit|withdraw/i.test(c)));
+  if (hi < 0) return { err: "Couldn't find the Date and Amount columns. Is this a transactions CSV?" };
+  const h = rows[hi].map(c => c.trim().toLowerCase());
+  const col = (...re) => h.findIndex(c => re.some(r => r.test(c)));
+  const di = col(/^transaction date$/, /^trans\.? date$/, /^date$/, /date/), ds = col(/^description$/, /description/, /merchant/, /^name$/, /payee/, /memo/, /details/);
+  const ai = col(/^amount$/, /amount/), dbi = col(/^debit$/, /debit/, /withdraw/), cri = col(/^credit$/, /credit/, /deposit/);
+  const out = [];
+  for (const r of rows.slice(hi + 1)) {
+    const date = toISO(r[di]); if (!date) continue;
+    let a;
+    if (dbi >= 0 && (r[dbi] || '').trim()) a = -Math.abs(num(r[dbi]));
+    else if (cri >= 0 && (r[cri] || '').trim()) a = Math.abs(num(r[cri]));
+    else a = num(r[ai]);
+    if (!isFinite(a)) continue;
+    out.push({ date, d: (r[ds] || '').trim(), a });
+  }
+  if (!out.length) return { err: 'No transactions found in that file.' };
+  // single Amount column: some cards list purchases as positive. Most rows are purchases, so make most rows negative.
+  let flipped = false;
+  if (dbi < 0 && out.filter(x => x.a > 0).length > out.filter(x => x.a < 0).length) { out.forEach(x => x.a = -x.a); flipped = true; }
+  return { rows: out, flipped };
+}
+function exRange() {
+  const t = etKey(Date.now()), y = t.slice(0, 4), mo = t.slice(5, 7);
+  const prev = new Date(Date.UTC(+y, +mo - 2, 1)).toISOString().slice(0, 7);
+  return { month: [y + '-' + mo + '-01', t, 'This month'], last: [prev + '-01', addDay(y + '-' + mo + '-01', -1), 'Last month'], year: [y + '-01-01', t, 'This year'],
+    lastyear: [(y - 1) + '-01-01', (y - 1) + '-12-31', 'Last year'], all: ['2000-01-01', t, 'All time'] }[EXR];
+}
+function expenses() {
+  const [a, b, lab] = exRange();
+  const E = EXPD || { tx: [], cards: [] };
+  const inR = t => { const k = etKey(t.t); return k >= a && k <= b; };
+  const spend = (E.tx || []).filter(t => t.a < 0 && inR(t));
+  const biz = spend.filter(t => t.biz), unl = spend.filter(t => t.biz === undefined || t.biz === null);
+  const tot = biz.reduce((x, t) => x - t.a, 0);
+  const byCat = {}; biz.forEach(t => byCat[t.cat || 'Other business'] = (byCat[t.cat || 'Other business'] || 0) - t.a);
+  const q = EXQ.toLowerCase();
+  const list = (EXSHOW === 'biz' ? biz : EXSHOW === 'personal' ? spend.filter(t => t.biz === false) : spend).filter(t => !q || (t.d + ' ' + t.cat + ' ' + t.acct).toLowerCase().includes(q));
+  const when = t => new Date(t).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+  const imp = IMP ? `<div class="card" style="border-color:var(--gold)"><h2>Check before importing</h2>
+      <p class="note">${IMP.rows.length} transactions from <b>${esc(IMP.file)}</b>, ${esc(IMP.rows[IMP.rows.length - 1].date)} to ${esc(IMP.rows[0].date)}. Purchases are shown as money out${IMP.flipped ? ' (this card lists purchases as positive numbers, so I flipped them)' : ''}.</p>
+      <div style="overflow-x:auto"><table class="itbl"><tr><th>Date</th><th>Description</th><th>Amount</th></tr>${IMP.rows.slice(0, 6).map(r => `<tr><td class="note">${esc(r.date)}</td><td>${esc(r.d)}</td><td>${r.a < 0 ? '−' : '+'}${money(Math.abs(r.a))}</td></tr>`).join('')}</table></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn btn-gold btn-sm" id="impgo">Import ${IMP.rows.length} transactions</button><button class="btn btn-line btn-sm" id="impflip">Signs are backwards, flip them</button><button class="btn btn-line btn-sm" id="impx">Cancel</button></div><p class="note" id="impmsg"></p></div>` : '';
+  return `<h1>Expenses</h1><p class="sub">Upload card and bank statements (CSV). AI sorts business from personal; you can flip anything. Only business expenses count toward the total.</p>
+  <div class="card"><h2>Upload a statement</h2>
+    <p class="note" style="margin-top:-8px">On your bank or card's website, download transactions as CSV (Chase, Citi, Capital One and most others have it). Uploading the same statement twice is safe: repeats are skipped.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+      <label class="note">Which card or account?<br><input id="impcard" list="impcards" placeholder="e.g. Extra, Chase Sapphire" style="margin-top:6px;background:var(--bg3);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:8px 10px;width:240px"><datalist id="impcards">${['Chase', 'Citi', 'Capital One', 'Extra'].concat((E.cards || []).map(c => c.name)).filter((x, i, ar) => ar.indexOf(x) === i).map(n => `<option value="${esc(n)}">`).join('')}</datalist></label>
+      <label class="btn btn-line btn-sm" style="cursor:pointer">Choose CSV file<input type="file" id="impfile" accept=".csv,text/csv" style="display:none"></label>
+    </div><p class="note" id="impmsg0"></p>
+    ${(E.cards || []).length ? `<div style="margin-top:10px">${E.cards.map(c => `<span class="pill" style="margin:0 6px 6px 0">${esc(c.name)} · ${c.n} · ${when(c.from)}–${when(c.to)}${c.unlabeled ? ' · ' + c.unlabeled + ' being labeled' : ''}</span>`).join('')}</div>` : ''}
+  </div>
+  ${imp}
+  <div class="card"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center">
+      <h2 style="margin:0">Business expenses · ${esc(lab)}</h2>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">${[['month', 'This month'], ['last', 'Last month'], ['year', 'This year'], ['lastyear', 'Last year'], ['all', 'All time']].map(([k, l]) => `<button class="chip ${EXR === k ? 'on' : ''}" data-exr="${k}">${l}</button>`).join('')}</div></div>
+    <div class="grid g4 kpis" style="margin-top:14px"><div class="card kpi"><span>Business total</span><b>${money(tot)}</b></div><div class="card kpi"><span>Business charges</span><b>${biz.length}</b></div><div class="card kpi"><span>Personal (not counted)</span><b>${money(spend.filter(t => t.biz === false).reduce((x, t) => x - t.a, 0))}</b></div><div class="card kpi"><span>Waiting for AI</span><b>${unl.length}</b></div></div>
+    ${Object.keys(byCat).length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 14px">${Object.entries(byCat).sort((x, y) => y[1] - x[1]).map(([c, v]) => `<span class="pill won">${esc(c)} · ${money(v)}</span>`).join('')}</div>` : ''}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+      ${[['biz', 'Business'], ['personal', 'Personal'], ['all', 'Everything']].map(([k, l]) => `<button class="chip ${EXSHOW === k ? 'on' : ''}" data-exs="${k}">${l}</button>`).join('')}
+      <input id="exq" placeholder="Search" value="${esc(EXQ)}" style="background:var(--bg3);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:6px 10px">
+      <button class="chip" id="excsv">Download CSV for accountant</button></div>
+    <p class="note" style="margin:0 0 8px">AI labels are a first draft; your accountant decides what's deductible.</p>
+    ${list.length ? `<div style="overflow-x:auto;max-height:560px;overflow-y:auto"><table class="itbl"><tr><th>Date</th><th>Description</th><th>Card</th><th>Amount</th><th>Label</th><th></th></tr>${list.slice(0, 1500).map(t => `<tr><td class="note nowrap">${when(t.t)}</td><td>${esc(t.d)}</td><td class="note">${esc(t.acct)}</td><td class="nowrap"><b>${money(-t.a)}</b></td>
+      <td>${t.biz === undefined || t.biz === null ? '<span class="note">AI is labeling…</span>' : `<span class="pill ${t.biz ? 'won' : ''}">${esc(t.cat || (t.biz ? 'Business' : 'Personal'))}</span>${t.manual ? ' <span class="note">(you)</span>' : t.why ? ` <span class="note">${esc(t.why)}</span>` : ''}`}</td>
+      <td><button class="chip" data-txid="${esc(t.id)}" data-txbiz="${t.biz ? 0 : 1}">${t.biz ? 'Personal' : 'Business'}</button></td></tr>`).join('')}</table></div>` : '<p class="note">Nothing here yet. Upload a statement above.</p>'}
+  </div>`;
+}
+function bindExpenses() {
+  const f = document.getElementById('impfile'); if (!f) return;
+  f.onchange = async () => { const file = f.files[0]; if (!file) return; const m = document.getElementById('impmsg0');
+    if (!document.getElementById('impcard').value.trim()) { m.textContent = 'Type which card this statement is from first.'; m.style.color = 'var(--warn)'; f.value = ''; return; }
+    const r = readStatement(await file.text()); if (r.err) { m.textContent = r.err; m.style.color = 'var(--bad)'; f.value = ''; return; }
+    IMP = Object.assign(r, { file: file.name, card: document.getElementById('impcard').value.trim() }); render(); };
+  const go = document.getElementById('impgo'); if (go) go.onclick = async () => { go.disabled = true; const m = document.getElementById('impmsg'); m.textContent = 'Importing…';
+    try { const r = await call(EXP, { op: 'import', card: IMP.card, rows: IMP.rows }); IMP = null; EXPD = await call(EXP, {}); render();
+      const m0 = document.getElementById('impmsg0'); if (m0) { m0.style.color = 'var(--ok)'; m0.textContent = `Imported ${r.added} new transactions${r.dupes ? ` (${r.dupes} already there, skipped)` : ''}. AI is labeling them now; this page refreshes in a minute.`; }
+      call(SYNC, {}).catch(() => {}); setTimeout(async () => { try { EXPD = await call(EXP, {}); if (TAB === 'expenses') render(); } catch (e) {} }, 60000);
+    } catch (e) { m.textContent = 'Import failed. Try again.'; go.disabled = false; } };
+  const fl = document.getElementById('impflip'); if (fl) fl.onclick = () => { IMP.rows.forEach(x => x.a = -x.a); IMP.flipped = !IMP.flipped; render(); };
+  const ix = document.getElementById('impx'); if (ix) ix.onclick = () => { IMP = null; render(); };
+  document.querySelectorAll('[data-exr]').forEach(b => b.onclick = () => { EXR = b.dataset.exr; render(); });
+  document.querySelectorAll('[data-exs]').forEach(b => b.onclick = () => { EXSHOW = b.dataset.exs; render(); });
+  const q = document.getElementById('exq'); if (q) q.onchange = () => { EXQ = q.value; render(); };
+  document.querySelectorAll('[data-txid]').forEach(b => b.onclick = async () => { b.disabled = true; try { EXPD = await call(EXP, { op: 'set', id: b.dataset.txid, biz: b.dataset.txbiz === '1' }); } catch (e) {} render(); });
+  const cs = document.getElementById('excsv'); if (cs) cs.onclick = () => { const [a, b] = exRange(), qq = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+    const rows = ((EXPD || {}).tx || []).filter(t => t.biz && t.a < 0 && etKey(t.t) >= a && etKey(t.t) <= b).sort((x, y) => x.t - y.t);
+    const csv = ['Date,Description,Amount,Category,Card,Note'].concat(rows.map(t => [etKey(t.t), t.d, (-t.a).toFixed(2), t.cat, t.acct, t.manual ? 'set by owner' : t.why].map(qq).join(','))).join('\n');
+    const el = document.createElement('a'); el.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); el.download = `business-expenses-${a}-to-${b}.csv`; el.click(); };
 }
 
 function overview(){
@@ -730,7 +839,7 @@ function markDirty(){ DIRTY = true; const m = $('#savemsg'); if (m) m.textConten
 function ladderPreview(){ const el = $('#ladder'); if (!el) return; const s = DRAFT; const steps = [s.listPrice, s.commitPrice].concat(s.discountSteps||[]).filter(n => n >= s.floorPrice); el.textContent = steps.map(n => '$'+n).join(' → ') + `  (floor $${s.floorPrice})`; }
 
 function bind(){
-  bindActivity(); bindInsights();
+  bindActivity(); bindInsights(); if (TAB === 'expenses') bindExpenses();
   document.querySelectorAll('[data-k]').forEach(el => el.oninput = el.onchange = () => {
     const k = el.dataset.k; let v = el.type === 'checkbox' ? el.checked : el.value;
     if ('num' in el.dataset) v = Number(v);
