@@ -79,6 +79,7 @@
     if (d.matched) {
       box.innerHTML = '<b>Your website: ' + esc(d.biz || 'your business') + '</b>' +
         '<p>Site code: <code>' + esc(d.code) + '</code> &nbsp;(save it, just in case)</p>' +
+        (d.email ? '<p>Log in to your portal with <b>' + esc(d.email) + '</b> (the email you paid with).</p>' : '') +
         '<p><a href="' + esc(d.site) + '" target="_blank" rel="noopener">Preview your site</a>. Not your business? Email <a href="mailto:hello@onewebonline.com">hello@onewebonline.com</a> and we\'ll fix it right away.</p>';
     } else {
       box.innerHTML = '<b>Payment received.</b><p>We\'re matching it to your website now. If you don\'t see your site in the portal within the hour, email <a href="mailto:hello@onewebonline.com">hello@onewebonline.com</a> with your business name.</p>';
