@@ -47,6 +47,7 @@ textarea{min-height:90px;resize:vertical}
 .savebar{position:sticky;bottom:16px;display:flex;justify-content:flex-end;gap:10px;align-items:center;margin-top:10px}
 .savebar span{color:var(--mut);font-size:13px}
 .itbl{width:100%;border-collapse:collapse;font-size:13px}.itbl th{text-align:left;font-weight:500;color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}.itbl td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}.itbl a{color:var(--gold2)}.itbl .nowrap{white-space:nowrap}.caret,.eye{background:none;border:0;color:var(--mut);cursor:pointer;font-size:14px;padding:2px 4px}.caret:hover,.eye:hover{color:var(--txt)}.lrow.hot td{background:rgba(201,168,106,.06)}.vrow td{background:var(--bg3);border-bottom:1px solid var(--bg2);padding:7px 10px}.pill.hotp{color:#fb923c;background:rgba(251,146,60,.14)}.ibar{width:80px;height:6px;background:var(--bg3);border-radius:9px;overflow:hidden;margin:6px 0 2px}.ibar div{height:100%;background:var(--gold)}
+.cfilt{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}.fchip{cursor:pointer;border:1px solid var(--line);background:var(--bg2);color:var(--mut);font:500 11px var(--sans);text-transform:uppercase;letter-spacing:.06em;padding:6px 11px;border-radius:99px;opacity:.75}.fchip b{margin-left:4px;color:inherit;opacity:.8}.fchip:hover{opacity:1}.fchip.on{opacity:1;outline:1.5px solid currentColor;outline-offset:1px;background:var(--bg3)}.fchip:not(.pill).on{color:var(--txt)}
 .chip{background:none;border:1px solid var(--line);color:var(--mut);border-radius:99px;padding:6px 12px;font-size:12px;cursor:pointer}.chip:hover{color:var(--txt)}.chip.on{background:var(--gold);border-color:var(--gold);color:#0a0a0a}
 .legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin:12px 0 4px}.lg{display:inline-flex;align-items:center;gap:7px;background:none;border:0;color:var(--txt);font-size:12px;cursor:pointer;padding:3px 0}.lg i{width:10px;height:10px;border-radius:3px;display:inline-block}.lg.off{opacity:.35;text-decoration:line-through}
 .tot{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-top:6px}.tot div,.totc{background:var(--bg3);border-radius:10px;padding:10px 12px;border:0;text-align:left;color:var(--txt);cursor:pointer;font:inherit}.totc:hover{outline:1px solid var(--line)}.totc.on{outline:1px solid var(--gold)}.totc b{display:block;font-size:22px;font-family:var(--serif);font-weight:400}.totc span{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em}.drill{margin-top:16px;border:1px solid;border-radius:14px;padding:16px;background:var(--bg2)}input[type=date]{background:var(--bg3);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:6px 8px;margin-left:6px;color-scheme:dark}.tot b{display:block;font-size:22px;font-family:var(--serif);font-weight:400}.tot span{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em}
@@ -387,13 +388,25 @@ function overview(){
   </div>`;
 }
 
+const CSTAT = [['new', 'New'], ['active', 'Active'], ['preview_requested', 'Preview requested'], ['preview_sent', 'Preview sent'], ['ready_to_pay', 'Ready to pay'], ['won', 'Won'], ['needs_human', 'Needs human'], ['lost', 'Lost'], ['opted_out', 'Opted out'], ['closed', 'Closed']];
+let CFILT = 'all';
+try { CFILT = localStorage.getItem('ow_cfilt') || 'all'; } catch (e) {}
 function convos(){
-  const list = STATE.convos;
-  if (!list.length) return `<h1>Conversations</h1><p class="sub">Every lead that texts back shows up here.</p><div class="card empty">No conversations yet.</div>`;
-  if (!SEL || !list.find(c => c.phone === SEL)) SEL = list[0].phone;
+  const all = STATE.convos;
+  if (!all.length) return `<h1>Conversations</h1><p class="sub">Every lead that texts back shows up here.</p><div class="card empty">No conversations yet.</div>`;
+  const cnt = {}; all.forEach(x => cnt[x.status] = (cnt[x.status] || 0) + 1);
+  const known = CSTAT.map(s => s[0]); Object.keys(cnt).forEach(k => { if (!known.includes(k)) CSTAT.push([k, k.replace(/_/g, ' ')]); });
+  if (CFILT !== 'all' && CFILT !== 'test' && !cnt[CFILT]) CFILT = 'all';
+  const list = CFILT === 'all' ? all : CFILT === 'test' ? all.filter(x => x.test) : all.filter(x => x.status === CFILT);
+  const nt = all.filter(x => x.test).length;
+  if (!SEL || !list.find(c => c.phone === SEL)) SEL = (list[0] || {}).phone;
   const c = list.find(x => x.phone === SEL);
+  const filt = `<div class="cfilt"><button class="fchip ${CFILT === 'all' ? 'on' : ''}" data-cf="all">All <b>${all.length}</b></button>${CSTAT.filter(([k]) => cnt[k]).map(([k, l]) => `<button class="fchip pill ${k} ${CFILT === k ? 'on' : ''}" data-cf="${k}">${l} <b>${cnt[k]}</b></button>`).join('')}${nt ? `<button class="fchip ${CFILT === 'test' ? 'on' : ''}" data-cf="test">Test chats <b>${nt}</b></button>` : ''}</div>`;
+  if (!c) return `<h1>Conversations</h1><p class="sub">Every lead that texts back, with the AI's replies and the actions it took.</p>
+  <div style="margin-bottom:12px"><button class="btn btn-line btn-sm" id="cleartests">Clear test chats</button></div>${filt}<div class="card empty">No conversations with this status.</div>`;
   return `<h1>Conversations</h1><p class="sub">Every lead that texts back, with the AI's replies and the actions it took.</p>
   <div style="margin-bottom:12px"><button class="btn btn-line btn-sm" id="cleartests">Clear test chats</button></div>
+  ${filt}
   <div class="convos">
     <div class="card clist">${list.map(x => `<div class="citem ${x.phone===SEL?'on':''}" data-c="${esc(x.phone)}">
       <b>${esc(x.name || x.phone)} ${x.test ? '<span class="pill">test</span>' : ''}</b>
@@ -724,6 +737,7 @@ function bind(){
   document.querySelectorAll('[data-bk]').forEach(el => el.onclick = () => load('booking_set', { id: el.dataset.bk, status: el.dataset.bs }));
   document.querySelectorAll('[data-bkm]').forEach(el => el.onclick = () => { const i = document.querySelector(`[data-bkt="${CSS.escape(el.dataset.bkm)}"]`); const t = i && i.value ? new Date(i.value).getTime() : 0; if (t > Date.now()) load('booking_set', { id: el.dataset.bkm, at: t }); else if (i) i.focus(); });
   const ct = $('#cleartests'); if (ct) ct.onclick = () => load('clear_tests');
+  document.querySelectorAll('[data-cf]').forEach(b => b.onclick = () => { CFILT = b.dataset.cf; SEL = null; try { localStorage.setItem('ow_cfilt', CFILT); } catch (e) {} render(); });
   const ts = $('#tsend'); if (ts) { const send = () => testSend(); ts.onclick = send; $('#tmsg').onkeydown = e => { if (e.key === 'Enter') send(); }; }
   const tr = $('#treset'); if (tr) tr.onclick = () => testSend(true);
   ladderPreview();
