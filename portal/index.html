@@ -188,7 +188,7 @@ $('#e2').onsubmit = async e => {
 };
 
 /* ---------- app ---------- */
-const TABS = [['site', 'Website'], ['photos', 'Photos'], ['bookings', 'Leads'], ['reviews', 'Reviews'], ['content', 'Pages & guides'], ['domain', 'Domain'], ['billing', 'Billing']];
+const TABS = [['site', 'Website'], ['results', 'Results'], ['photos', 'Photos'], ['bookings', 'Leads'], ['reviews', 'Reviews'], ['content', 'Pages & guides'], ['domain', 'Domain'], ['billing', 'Billing']];
 async function load() {
   D = await api({ op: 'me' });
   $('#login').classList.add('hide'); $('#app').classList.remove('hide'); $('#out').classList.remove('hide');
@@ -203,7 +203,7 @@ function render() {
   const nb = (D.bookings || []).filter(b => !b.st).length + (D.leads || []).filter(b => !b.st).length;
   $('#tabs').innerHTML = TABS.map(([k, l]) => `<button class="tab ${TAB === k ? 'on' : ''}" data-t="${k}" type="button">${l}${k === 'bookings' && nb ? ` (${nb})` : ''}</button>`).join('');
   document.querySelectorAll('.tab').forEach(b => b.onclick = () => { TAB = b.dataset.t; try { localStorage.setItem('ow_portal_tab', TAB); } catch (e) {} render(); });
-  $('#view').innerHTML = ({ site, photos, bookings, reviews, content, domain, billing }[TAB] || site)();
+  $('#view').innerHTML = ({ site, results, photos, bookings, reviews, content, domain, billing }[TAB] || site)();
   (BIND[TAB] || (() => {}))();
 }
 const say = (el, t, ok) => { el.className = 'msg ' + (ok ? 'ok' : 'bad'); el.textContent = t; };
@@ -283,6 +283,25 @@ function reviews() {
     <div class="card"><h2>Your review link</h2><p class="note" style="margin-top:-6px">${D.reviewUrl ? 'This is where customers land. Change it if you have a different Google review link.' : 'Paste your Google review link (Google Business Profile, then "Ask for reviews").'}</p>
     <form id="ruf"><label>Google review link<input name="reviewUrl" value="${esc(D.reviewUrl || '')}" placeholder="https://g.page/r/.../review"></label><button class="btn btn-line btn-sm" type="submit">Save link</button></form></div>
     ${sent.length ? `<div class="card"><h2>Sent (${sent.length})</h2>${sent.map(r => `<p class="note" style="margin:4px 0">${esc(r.name || '')} · ${esc(r.email)} · ${new Date(r.at).toLocaleDateString()}</p>`).join('')}</div>` : ''}`;
+}
+let RS = null;
+function results() {
+  if (!RS) { api({ op: 'results' }).then(r => { RS = r; if (TAB === 'results') render(); }).catch(() => {}); return '<div class="card"><p class="note">Loading…</p></div>'; }
+  if (!RS.live) return '<div class="card"><h2>Results</h2><p class="note">Once your site is published, this is where you\'ll see how many people visit it, how many tap to call you, and how you show up on Google.</p></div>';
+  const n = x => Number(x || 0).toLocaleString();
+  const leads = (D.bookings || []).length + (D.leads || []).length;
+  const max = Math.max(1, ...(RS.daily || []).map(d => d.v));
+  const bars = (RS.daily || []).map(d => `<div title="${esc(d.d)}: ${d.v} visits, ${d.c} calls" style="flex:1;min-width:4px;display:flex;flex-direction:column;justify-content:flex-end;height:90px"><div style="height:${Math.round(d.v / max * 100)}%;min-height:${d.v ? 3 : 0}px;background:var(--gold);border-radius:3px 3px 0 0;opacity:.85"></div></div>`).join('');
+  const stat = (big, label, sub) => `<div style="flex:1;min-width:130px"><div style="font-size:30px;font-weight:700">${big}</div><div>${label}</div><div class="note">${sub}</div></div>`;
+  const R = RS.rep, G = RS.gsc;
+  const google = R ? `<div style="display:flex;gap:18px;flex-wrap:wrap;margin:6px 0 14px">${stat(n(R.clicks), 'Clicks from Google', 'people who clicked your site in search')}${stat(n(R.impr), 'Times shown on Google', 'your site appeared in results')}${stat(R.pos ? R.pos.toFixed(1) : '–', 'Average position', 'lower is better (1 = top)')}</div>
+      <p class="note">Week of ${esc(R.from)} to ${esc(R.to)} (Google reports with a 2–3 day delay).</p>
+      ${(R.top || []).length ? `<h3 style="margin:16px 0 8px">What people searched to find you</h3><table style="width:100%;border-collapse:collapse;font-size:14px"><tr class="note"><td>Search</td><td style="text-align:right">Clicks</td><td style="text-align:right">Shown</td></tr>${R.top.map(q => `<tr style="border-top:1px solid var(--line)"><td style="padding:8px 0">${esc(q.q)}</td><td style="text-align:right">${n(q.c)}</td><td style="text-align:right">${n(q.i)}</td></tr>`).join('')}</table>` : '<p class="note">No searches recorded yet. New sites usually start showing up within a few weeks.</p>'}`
+    : `<p class="note">${G && G.st === 'ok' ? 'Your site is connected to Google Search Console. Your first weekly report shows up here within a few days.' : RS.domain ? 'We\'re connecting your site to Google Search Console. Your first Google numbers show up here about a week after that.' : 'Google numbers show up here once your own domain is connected (see the Domain tab).'}</p>`;
+  return `<div class="card"><h2>Your website, last 30 days</h2>
+      <div style="display:flex;gap:18px;flex-wrap:wrap;margin:6px 0 16px">${stat(n(RS.views30), 'Visits', n(RS.views7) + ' in the last 7 days')}${stat(n(RS.calls30), 'Tapped to call', n(RS.calls7) + ' in the last 7 days')}${stat(n(leads), 'Leads & bookings', 'see the Leads tab')}</div>
+      ${bars ? `<div style="display:flex;gap:3px;align-items:flex-end;padding-top:6px;border-bottom:1px solid var(--line)">${bars}</div><p class="note" style="margin-top:6px">Visits per day</p>` : '<p class="note">Visits start counting from the day your site went live.</p>'}</div>
+    <div class="card"><h2>On Google</h2>${google}</div>`;
 }
 let CT = null;
 function content() {
