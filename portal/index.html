@@ -49,7 +49,7 @@ input[type=color]{height:46px;padding:4px}
 .ph .act{position:absolute;left:6px;right:6px;bottom:6px;display:flex;gap:6px;justify-content:space-between}
 .ph .act button{background:rgba(10,10,10,.8);color:var(--txt);border:1px solid var(--line);border-radius:999px;padding:5px 10px;font:500 12px var(--sans);cursor:pointer}
 .ph .main{position:absolute;top:6px;left:6px}
-.svcs .s{display:flex;gap:8px;margin-bottom:8px}.svcs .s input{margin:0}
+.svcs .s{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:8px;margin-bottom:8px}.svcs .s input{margin:0}@media(max-width:600px){.svcs .s{grid-template-columns:1fr}}
 .svcs .s button{flex:none}
 .hours .h{display:grid;grid-template-columns:1fr 1.4fr auto;gap:8px;margin-bottom:8px}.hours .h input{margin:0}
 .bk{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
@@ -220,8 +220,8 @@ function site() {
     <label>Headline <span class="note">(leave empty for our default)</span><input name="headline" value="${esc(f.headline)}" maxlength="90"></label>
     <label>Short description<textarea name="lead" rows="2" maxlength="240">${esc(f.lead)}</textarea></label>
   </div>
-  <div class="card"><h2>Services</h2><p class="note" style="margin-top:-6px">Up to 6. Leave all empty to use the usual services for your trade.</p>
-    <div class="svcs" id="svcs">${[...(f.services || []), '', '', '', '', '', ''].slice(0, 6).map(s => `<div class="s"><input name="svc" value="${esc(s)}" maxlength="50" aria-label="Service"></div>`).join('')}</div>
+  <div class="card"><h2>Services</h2><p class="note" style="margin-top:-6px">Up to 9 services, each with a short description of what you do. Leave all empty to use the usual services for your trade.</p>
+    <div class="svcs" id="svcs">${[...(f.services || []), '', '', '', '', '', '', '', '', ''].slice(0, 9).map(s => { const m = String(s).split(/\s*:\s+/); const nm = m[0] || '', ds = m.slice(1).join(': '); return `<div class="s"><input name="svc" value="${esc(nm)}" maxlength="40" placeholder="Service (e.g. Drain cleaning)" aria-label="Service name"><input name="svcd" value="${esc(ds)}" maxlength="95" placeholder="Short description (optional)" aria-label="Service description"></div>`; }).join('')}</div>
   </div>
   <div class="card"><h2>Hours</h2>
     <div class="hours" id="hrs">${(hrs.length ? hrs : [['Mon-Fri', ''], ['Sat', '']]).map(([d, t]) => hourRow(d, t)).join('')}</div>
@@ -396,7 +396,7 @@ const BIND = {
       e.preventDefault(); const F = e.target, m = $('#smsg'), btn = $('#save');
       const hours = {}; document.querySelectorAll('#hrs .h').forEach(r => { const d = r.querySelector('[name=hd]').value.trim(), t = r.querySelector('[name=ht]').value.trim(); if (d && t) hours[d] = t; });
       const fields = { name: F.name.value, phone: F.phone.value, address: F.address.value, headline: F.headline.value, lead: F.lead.value,
-        services: [...F.querySelectorAll('[name=svc]')].map(i => i.value.trim()).filter(Boolean), hours,
+        services: [...F.querySelectorAll('[name=svc]')].map((i, k) => { const n = i.value.trim().replace(/:/g, ' '), d = ((F.querySelectorAll('[name=svcd]')[k] || {}).value || '').trim(); return n ? (d ? n + ': ' + d : n) : ''; }).filter(Boolean), hours,
         brandColor: F.useColor.checked ? F.brandColor.value : '', theme: F.theme.value, fonts: F.fonts.value,
         bookingOn: F.bookingOn.checked, hideReviews: !F.showReviews.checked, licensed: F.licensed.checked };
       if (F.alertPhone.value.trim()) fields.alertPhone = F.alertPhone.value;
