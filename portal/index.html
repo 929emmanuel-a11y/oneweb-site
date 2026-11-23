@@ -103,6 +103,7 @@ footer a{color:var(--mut)}
   <section id="app" class="hide">
     <div class="top"><div><h1 id="biz">Your website</h1><p class="sub" id="status"></p></div></div>
     <div class="links" id="links"></div>
+    <div id="setup"></div>
     <nav class="tabs" id="tabs" aria-label="Portal sections"></nav>
     <div id="view"></div>
   </section>
@@ -210,9 +211,9 @@ function render() {
     ['domain', 'Connect your domain (optional)', !!D.domain],
     ['publish', 'Publish your site', !!D.live]];
   const left = steps.filter(x => !x[2]).length;
-  $('#links').insertAdjacentHTML('beforeend', (D.live && !left ? '' : `<div class="card" style="margin-top:16px"><h2 style="margin-bottom:6px">${left ? 'Finish setting up' : 'All set'}</h2>
+  $('#setup').innerHTML = (D.live && !left ? '' : `<div class="card" style="margin-top:16px"><h2 style="margin-bottom:6px">${left ? 'Finish setting up' : 'All set'}</h2>
       ${steps.map(([t, l, ok]) => `<div style="display:flex;gap:10px;align-items:center;padding:6px 0">${ok ? '<span class="pill ok">Done</span>' : '<span class="pill new">To do</span>'}<a href="#" data-go="${t}" style="color:inherit">${esc(l)}</a></div>`).join('')}</div>`)
-    + `<p class="note" style="margin:14px 0 0">Need a change or stuck? Reply to any of our texts or email <a href="mailto:hello@onewebonline.com">hello@onewebonline.com</a>${code ? ` with your site code <b>${esc(code)}</b>` : ''}. You can also just describe what you want changed and we'll do it.</p>`);
+    + `<p class="note" style="margin:14px 0 0">Need a change or stuck? Reply to any of our texts or email <a href="mailto:hello@onewebonline.com">hello@onewebonline.com</a>${code ? ` with your site code <b>${esc(code)}</b>` : ''}. You can also just describe what you want changed and we'll do it.</p>`;
   document.querySelectorAll('[data-go]').forEach(a => a.onclick = e => { e.preventDefault(); const t = a.dataset.go; if (t === 'publish') { const b = $('#pub'); if (b) b.click(); return; } TAB = t; try { localStorage.setItem('ow_portal_tab', TAB); } catch (x) {} render(); });
   const pb = $('#pub'); if (pb) pb.onclick = async () => { if (!confirm('Publish your site? It goes live for everyone (you can still edit it anytime).')) return; pb.disabled = true; try { D = await api({ op: 'publish' }); render(); } catch (e) { pb.disabled = false; } };
   const nb = (D.bookings || []).filter(b => !b.st).length + (D.leads || []).filter(b => !b.st).length;
