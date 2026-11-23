@@ -46,6 +46,7 @@ textarea{min-height:90px;resize:vertical}
 .rules .rule{display:flex;gap:8px;margin-bottom:8px}.rules .rule input{flex:1}
 .savebar{position:sticky;bottom:16px;display:flex;justify-content:flex-end;gap:10px;align-items:center;margin-top:10px}
 .savebar span{color:var(--mut);font-size:13px}
+.itbl{width:100%;border-collapse:collapse;font-size:13px}.itbl th{text-align:left;font-weight:500;color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}.itbl td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}.ibar{width:80px;height:6px;background:var(--bg3);border-radius:9px;overflow:hidden;margin:6px 0 2px}.ibar div{height:100%;background:var(--gold)}
 .chip{background:none;border:1px solid var(--line);color:var(--mut);border-radius:99px;padding:6px 12px;font-size:12px;cursor:pointer}.chip:hover{color:var(--txt)}.chip.on{background:var(--gold);border-color:var(--gold);color:#0a0a0a}
 .legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin:12px 0 4px}.lg{display:inline-flex;align-items:center;gap:7px;background:none;border:0;color:var(--txt);font-size:12px;cursor:pointer;padding:3px 0}.lg i{width:10px;height:10px;border-radius:3px;display:inline-block}.lg.off{opacity:.35;text-decoration:line-through}
 .tot{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-top:16px}.tot div{background:var(--bg3);border-radius:10px;padding:10px 12px}.tot b{display:block;font-size:22px;font-family:var(--serif);font-weight:400}.tot span{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em}
@@ -115,7 +116,7 @@ let DSTATS = null, SITEBK = [], CLIENTS = [];
 const EDIT = 'https://n8n-production-9be3db1c.up.railway.app/webhook/oneweb-preview-edit';
 // Sidebar groups. Keys map to the view functions below.
 const NAVG = [
-  ['', [['overview','Overview']]],
+  ['', [['overview','Overview'],['insights','Insights']]],
   ['Sales', [['convos','Conversations'],['bookings','Sales calls'],['results','Call results']]],
   ['Communication', [['voice','AI caller & dialer'],['closer','AI texter (closer)'],['pricing','Pricing & offers'],['test','Test chat']]],
   ['Clients', [['clients','Clients'],['reviews','Testimonials']]]];
@@ -139,6 +140,7 @@ async function load(op='state', extra={}){
   try { DSTATS = await call(DIAL, {}); } catch (e) { if (e.auth) throw e; }
   try { SITEBK = (await call(EDIT, { op: 'site_bookings' })).bookings || []; } catch (e) {}
   try { CLIENTS = (await call(EDIT, { op: 'clients' })).clients || []; } catch (e) {}
+  try { INS = await call(EDIT, { op: 'insights' }); } catch (e) {}
   if (!DIRTY) DRAFT = JSON.parse(JSON.stringify(STATE.settings));
   $('#synced').textContent = 'Synced '+new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
   render();
@@ -149,7 +151,7 @@ function nav(){
   $('#nav').innerHTML = h; $('#mnav').innerHTML = h;
   document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { TAB = b.dataset.t; render(); });
 }
-function render(){ nav(); const f = { overview, convos, closer, pricing, reviews, bookings, results, clients, voice, test }[TAB]; $('#main').innerHTML = f(); bind(); }
+function render(){ nav(); const f = { overview, insights, convos, closer, pricing, reviews, bookings, results, clients, voice, test }[TAB]; $('#main').innerHTML = f(); bind(); }
 
 function dialToday(){
   const d = DSTATS || {}, t = d.today || {}, o = (d.outcomes || {})[t.date] || {};
@@ -232,6 +234,51 @@ function bindActivity() {
   document.querySelectorAll('[data-range]').forEach(b => b.onclick = () => { RANGE = b.dataset.range; try { localStorage.setItem('ow_range', RANGE); } catch (e) {} render(); });
   document.querySelectorAll('[data-met]').forEach(b => b.onclick = () => { HIDE[b.dataset.met] = !HIDE[b.dataset.met]; try { localStorage.setItem('ow_hide', JSON.stringify(HIDE)); } catch (e) {} render(); });
   const lg = document.getElementById('logy'); if (lg) lg.onclick = () => { LOGY = !LOGY; try { localStorage.setItem('ow_logy', LOGY ? '1' : '0'); } catch (e) {} render(); };
+}
+
+/* ---------- Insights: who opened their preview and how they engaged ---------- */
+let INS = null, IRANGE = '7';
+try { IRANGE = localStorage.getItem('ow_irange') || '7'; } catch (e) {}
+const IR = [['1', 'Today'], ['7', '7 days'], ['30', '30 days'], ['90', '3 months'], ['all', 'All time']];
+const fmtS = s => s < 60 ? s + 's' : Math.floor(s / 60) + 'm ' + String(s % 60).padStart(2, '0') + 's';
+const TAPL = { call: 'Call', text: 'Text', estimate: 'Estimate', chat: 'Chat', nav: 'Menu', other: 'Other' };
+const styleOf = th => /theme-light/.test(th || '') ? 'Light' : /theme-warm/.test(th || '') ? 'Warm' : 'Dark';
+const cap = s => String(s || '').charAt(0).toUpperCase() + String(s || '').slice(1);
+function insights() {
+  if (!INS) return `<h1>Insights</h1><p class="sub">Loading…</p>`;
+  const since = IRANGE === 'all' ? 0 : IRANGE === '1' ? new Date(new Date().toDateString()).getTime() : Date.now() - Number(IRANGE) * 864e5;
+  const visits = [];
+  for (const s of INS.sites) for (const e of s.eng) if (e.at >= since) visits.push(Object.assign({ site: s }, e));
+  visits.sort((a, b) => b.at - a.at);
+  const opened = INS.sites.filter(s => s.opl >= since || s.eng.some(e => e.at >= since));
+  const avg = (a, f) => a.length ? Math.round(a.reduce((x, y) => x + f(y), 0) / a.length) : 0;
+  const tapped = (a, k) => a.length ? Math.round(100 * a.filter(v => k ? v.tp[k] : Object.keys(v.tp).some(x => x !== 'nav' && x !== 'other')).length / a.length) : 0;
+  const kpi = (b, l) => `<div class="card kpi"><span>${l}</span><b>${b}</b></div>`;
+  const group = keyf => { const m = {}; for (const v of visits) { const k = keyf(v); (m[k] = m[k] || []).push(v); } return m; };
+  const row = (label, vs, extra) => `<tr><td>${label}</td>${extra || ''}<td>${vs.length}</td><td>${fmtS(avg(vs, v => v.s))}</td><td>${avg(vs, v => v.sc)}%</td><td>${tapped(vs, 'call')}%</td><td>${tapped(vs)}%</td></tr>`;
+  const byTrade = group(v => v.site.trade), byLook = group(v => v.site.trade + ' · ' + styleOf(v.th));
+  const openedBy = {}; opened.forEach(s => openedBy[s.trade] = (openedBy[s.trade] || 0) + 1);
+  const best = vs => vs.slice().sort((a, b) => (b.s + b.sc) - (a.s + a.sc))[0];
+  const tbl = (head, body) => `<div style="overflow-x:auto"><table class="itbl"><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr>${body}</table></div>`;
+  return `<h1>Insights</h1><p class="sub">Who opened their preview, how long they stayed, how far they scrolled and what they tapped. Your own test visits are not counted.</p>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px">${IR.map(([k, l]) => `<button class="chip ${IRANGE === k ? 'on' : ''}" data-ir="${k}">${l}</button>`).join('')}</div>
+  <div class="grid g4 kpis">${kpi(opened.length, 'Previews opened')}${kpi(visits.length, 'Visits')}${kpi(fmtS(avg(visits, v => v.s)), 'Avg time on site')}${kpi(avg(visits, v => v.sc) + '%', 'Avg scrolled')}</div>
+  <div class="card"><h2>Recent visits</h2>${visits.length ? tbl(['When', 'Business', 'Trade', 'Time', 'Scrolled', 'Tapped', 'Device'], visits.slice(0, 60).map(v => `<tr>
+      <td class="note">${new Date(v.at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</td>
+      <td><a href="https://${esc(v.site.slug)}.onewebonline.com/?qa=1" target="_blank" rel="noopener">${esc(v.site.name)}</a>${v.site.owner ? `<br><span class="note">${esc(v.site.owner)}</span>` : ''}<br><span class="note">${esc(v.site.city)}${v.site.phone ? ' · ' + esc(v.site.phone) : ''}</span></td>
+      <td>${esc(cap(v.site.trade))}</td><td>${fmtS(v.s)}</td>
+      <td><div class="ibar"><div style="width:${v.sc}%"></div></div><span class="note">${v.sc}%</span></td>
+      <td>${Object.entries(v.tp).map(([k, n]) => `<span class="pill ${k === 'call' || k === 'estimate' ? 'won' : ''}">${TAPL[k] || k}${n > 1 ? ' ×' + n : ''}</span>`).join(' ') || '<span class="note">none</span>'}</td>
+      <td class="note">${v.dev === 'm' ? 'Phone' : 'Computer'}</td></tr>`).join('')) : '<p class="note">No visits in this range yet. Every time a lead opens their preview it shows up here, and you get the same details on Telegram.</p>'}</div>
+  <div class="card"><h2>By trade</h2><p class="note" style="margin-top:-8px">Which kinds of businesses look at their site the longest and tap to call. Give it a few hundred visits before trusting the differences.</p>
+    ${Object.keys(byTrade).length ? tbl(['Trade', 'Previews built', 'Opened', 'Visits', 'Avg time', 'Avg scrolled', 'Tapped call', 'Tapped any button'],
+      Object.entries(byTrade).sort((a, b) => b[1].length - a[1].length).map(([t, vs]) => row(esc(cap(t)), vs, `<td>${(INS.built || {})[t] || 0}</td><td>${openedBy[t] || 0}</td>`)).join('')) : '<p class="note">Nothing yet.</p>'}</div>
+  <div class="card"><h2>By look</h2><p class="note" style="margin-top:-8px">Each trade's template in each style (dark, light, warm). Open an example to see it. This is for your eyes only: nothing changes automatically.</p>
+    ${Object.keys(byLook).length ? tbl(['Template', 'Example', 'Visits', 'Avg time', 'Avg scrolled', 'Tapped call', 'Tapped any button'],
+      Object.entries(byLook).sort((a, b) => avg(b[1], v => v.s) - avg(a[1], v => v.s)).map(([t, vs]) => row(esc(cap(t)), vs, `<td><a href="https://${esc(best(vs).site.slug)}.onewebonline.com/?qa=1" target="_blank" rel="noopener">View</a></td>`)).join('')) : '<p class="note">Nothing yet.</p>'}</div>`;
+}
+function bindInsights() {
+  document.querySelectorAll('[data-ir]').forEach(b => b.onclick = () => { IRANGE = b.dataset.ir; try { localStorage.setItem('ow_irange', IRANGE); } catch (e) {} render(); });
 }
 
 function overview(){
@@ -574,7 +621,7 @@ function markDirty(){ DIRTY = true; const m = $('#savemsg'); if (m) m.textConten
 function ladderPreview(){ const el = $('#ladder'); if (!el) return; const s = DRAFT; const steps = [s.listPrice, s.commitPrice].concat(s.discountSteps||[]).filter(n => n >= s.floorPrice); el.textContent = steps.map(n => '$'+n).join(' → ') + `  (floor $${s.floorPrice})`; }
 
 function bind(){
-  bindActivity();
+  bindActivity(); bindInsights();
   document.querySelectorAll('[data-k]').forEach(el => el.oninput = el.onchange = () => {
     const k = el.dataset.k; let v = el.type === 'checkbox' ? el.checked : el.value;
     if ('num' in el.dataset) v = Number(v);
