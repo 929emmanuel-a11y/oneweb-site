@@ -171,7 +171,7 @@ async function sendEmailCode() {
   try {
     const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ op: 'send_email_code', email: EMAIL }) }).then(r => r.json());
     $('#e1').classList.add('hide'); $('#e2').classList.remove('hide'); $('#ego').disabled = false; $('#ecd').value = ''; $('#ecd').focus();
-    m.textContent = 'If that email is on a One Web account, a code is on its way. Check your spam folder too.';
+    m.textContent = 'If that email is on a One Web account, a code is on its way. Check your spam folder too. Nothing after 2 minutes? Use the email you paid with, or email hello@onewebonline.com with your site code.';
     let left = r.ttl || 120; clearInterval(TIMER);
     const tick = () => { const t = $('#timer');
       if (left <= 0) { clearInterval(TIMER); t.textContent = 'This code expired. Tap "Send a new code".'; $('#ego').disabled = true; return; }
