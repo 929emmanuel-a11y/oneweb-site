@@ -70,7 +70,7 @@ footer a{color:var(--mut)}
   <!-- login -->
   <section id="login" class="login hide">
     <h1>Client portal</h1>
-    <p class="sub">Log in with the phone number on your account. We'll text you a 6-digit code.</p>
+    <p class="sub" id="lsub">Log in with the email you paid with. We'll email you a 6-digit code. No password needed.</p>
     <div class="card">
       <form id="f1">
         <label>Phone number<input id="ph" type="tel" inputmode="tel" autocomplete="tel" placeholder="(555) 123-4567" required></label>
@@ -158,8 +158,10 @@ $('#swap').onclick = () => {
   MODE = MODE === 'phone' ? 'email' : 'phone'; $('#lmsg').textContent = ''; clearInterval(TIMER);
   ['#f1', '#f2', '#e1', '#e2'].forEach(s => $(s).classList.add('hide'));
   $(MODE === 'phone' ? '#f1' : '#e1').classList.remove('hide');
-  $('#swap').textContent = MODE === 'phone' ? 'No access to your phone? Sign in with an email code instead' : 'Sign in with a text code instead';
+  $('#swap').textContent = MODE === 'phone' ? 'Sign in with an email code instead' : 'Sign in with a text code instead';
+  $('#lsub').textContent = MODE === 'phone' ? "Log in with the phone number on your account. We'll text you a 6-digit code." : "Log in with the email you paid with. We'll email you a 6-digit code. No password needed.";
 };
+$('#swap').click();   // email first
 async function sendEmailCode() {
   const m = $('#lmsg'); m.className = 'msg'; m.textContent = 'Sending...';
   try {
@@ -199,6 +201,19 @@ function render() {
   $('#biz').textContent = f.name || 'Your website';
   $('#status').innerHTML = D.live ? `<span class="pill ok">Live</span> &nbsp;${esc(D.site.replace(/^https:\/\//, ''))}` : `<span class="pill new">Not live yet</span> &nbsp;Add your photos and details, then publish when it looks right.`;
   $('#links').innerHTML = `<a class="btn btn-line btn-sm" href="${esc(D.site)}" target="_blank" rel="noopener">View my site</a>` + (D.live ? '' : ` <button class="btn btn-gold btn-sm" type="button" id="pub">Publish my site</button>`);
+  const slug = (D.site.match(/^https?:\/\/([a-z0-9-]+)\.onewebonline\.com/) || [])[1] || '';
+  const code = slug ? (p => (p[0].slice(0, 10) + '-' + p[p.length - 1]).toUpperCase())(slug.split('-')) : '';
+  const steps = [
+    ['photos', 'Add your logo and photos of your work', !!(D.logo || (D.photos || []).length)],
+    ['site', 'Check your business info, services and hours', !!((f.services || []).length || Object.keys(f.hours || {}).length)],
+    ['content', 'List the towns you serve', !!(f.areas && f.areas.length)],
+    ['domain', 'Connect your domain (optional)', !!D.domain],
+    ['publish', 'Publish your site', !!D.live]];
+  const left = steps.filter(x => !x[2]).length;
+  $('#links').insertAdjacentHTML('beforeend', (D.live && !left ? '' : `<div class="card" style="margin-top:16px"><h2 style="margin-bottom:6px">${left ? 'Finish setting up' : 'All set'}</h2>
+      ${steps.map(([t, l, ok]) => `<div style="display:flex;gap:10px;align-items:center;padding:6px 0">${ok ? '<span class="pill ok">Done</span>' : '<span class="pill new">To do</span>'}<a href="#" data-go="${t}" style="color:inherit">${esc(l)}</a></div>`).join('')}</div>`)
+    + `<p class="note" style="margin:14px 0 0">Need a change or stuck? Reply to any of our texts or email <a href="mailto:hello@onewebonline.com">hello@onewebonline.com</a>${code ? ` with your site code <b>${esc(code)}</b>` : ''}. You can also just describe what you want changed and we'll do it.</p>`);
+  document.querySelectorAll('[data-go]').forEach(a => a.onclick = e => { e.preventDefault(); const t = a.dataset.go; if (t === 'publish') { const b = $('#pub'); if (b) b.click(); return; } TAB = t; try { localStorage.setItem('ow_portal_tab', TAB); } catch (x) {} render(); });
   const pb = $('#pub'); if (pb) pb.onclick = async () => { if (!confirm('Publish your site? It goes live for everyone (you can still edit it anytime).')) return; pb.disabled = true; try { D = await api({ op: 'publish' }); render(); } catch (e) { pb.disabled = false; } };
   const nb = (D.bookings || []).filter(b => !b.st).length + (D.leads || []).filter(b => !b.st).length;
   $('#tabs').innerHTML = TABS.map(([k, l]) => `<button class="tab ${TAB === k ? 'on' : ''}" data-t="${k}" type="button">${l}${k === 'bookings' && nb ? ` (${nb})` : ''}</button>`).join('');
@@ -236,7 +251,8 @@ function site() {
   <div class="card"><h2>Options</h2>
     <label class="toggle"><span>Online booking<small>Customers can request a time on your site</small></span><input type="checkbox" name="bookingOn" ${f.bookingOn ? 'checked' : ''}></label>
     <label style="margin-top:6px">Text booking alerts to<input name="alertPhone" type="tel" value="${esc(f.alertPhone)}"></label>
-    <label>Backup login email <span class="note">(for when you can't get texts)</span><input name="email" type="email" value="${esc(f.email)}" autocomplete="email"></label>
+    <label>Login email <span class="note">(where we send your login codes)</span><input name="email" type="email" value="${esc(f.email)}" autocomplete="email"></label>
+    <label class="toggle"><span>AI chat assistant<small>Answers visitors' questions 24/7 and sends you their name and number</small></span><input type="checkbox" name="chatOn" ${D.chatOn ? 'checked' : ''}></label>
     <label class="toggle"><span>Show Google reviews</span><input type="checkbox" name="showReviews" ${f.hideReviews ? '' : 'checked'}></label>
     <label class="toggle"><span>We're licensed &amp; insured<small>Only check this if it's true. It will show on your site.</small></span><input type="checkbox" name="licensed" ${f.licensed ? 'checked' : ''}></label>
   </div>
@@ -398,7 +414,7 @@ const BIND = {
       const fields = { name: F.name.value, phone: F.phone.value, address: F.address.value, headline: F.headline.value, lead: F.lead.value,
         services: [...F.querySelectorAll('[name=svc]')].map((i, k) => { const n = i.value.trim().replace(/:/g, ' '), d = ((F.querySelectorAll('[name=svcd]')[k] || {}).value || '').trim(); return n ? (d ? n + ': ' + d : n) : ''; }).filter(Boolean), hours,
         brandColor: F.useColor.checked ? F.brandColor.value : '', theme: F.theme.value, fonts: F.fonts.value,
-        bookingOn: F.bookingOn.checked, hideReviews: !F.showReviews.checked, licensed: F.licensed.checked };
+        bookingOn: F.bookingOn.checked, chatOn: F.chatOn.checked, hideReviews: !F.showReviews.checked, licensed: F.licensed.checked };
       if (F.alertPhone.value.trim()) fields.alertPhone = F.alertPhone.value;
       if (F.email.value.trim()) fields.email = F.email.value;
       btn.disabled = true; m.className = 'msg'; m.textContent = 'Saving...';
