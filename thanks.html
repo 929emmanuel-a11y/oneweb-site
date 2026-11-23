@@ -20,6 +20,8 @@
 .ctas{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:56px}
 .faq h2{font-family:var(--serif,'Instrument Serif',serif);font-weight:400;font-size:34px;margin:0 0 16px}
 .faq details{border-top:1px solid var(--line,#2a2a2a);padding:16px 0}.faq details:last-child{border-bottom:1px solid var(--line,#2a2a2a)}
+.mysite{border:1px solid var(--gold);border-radius:18px;padding:20px 22px;margin:-14px 0 34px;background:rgba(201,168,106,.08)}
+.mysite b{display:block;font-size:18px;margin-bottom:4px}.mysite p{margin:4px 0 0;color:var(--mut,#a8a29e)}.mysite code{font:700 16px ui-monospace,monospace;color:var(--gold);letter-spacing:.04em}
 .faq summary{cursor:pointer;font-weight:600;font-size:16px}.faq details p{color:var(--mut,#a8a29e);margin:10px 0 0}
 </style>
 </head>
@@ -34,6 +36,8 @@
   <h1>You're all set. Welcome to One Web.</h1>
   <p class="lead">Thanks for trusting us with your website. Your site is already saved to your account. Here's what happens next.</p>
 
+  <div id="mysite" class="mysite" hidden></div>
+
   <ol class="steps">
     <li><div><b>Check your email</b><p>In the next few minutes you'll get a welcome email from One Web, sent to the email you used to pay. It has your login link. Not there? Check your spam or promotions folder.</p></div></li>
     <li><div><b>Log in to your client portal</b><p>Go to <a href="portal/">onewebonline.com/portal</a> and enter that same email. We'll send you a 6-digit code: no password, nothing to sign up for. Your website is already in there.</p></div></li>
@@ -46,7 +50,8 @@
 
   <section class="faq">
     <h2>Common questions</h2>
-    <details><summary>How do you know which website is mine?</summary><p>Your payment is tied to the phone number we contacted you on, so the site we built for your business is linked to your account automatically. Log in with the email you paid with and it'll be there.</p></details>
+    <details><summary>How do you know which website is mine?</summary><p>Every website we build has its own site code (like <b>KPOST-378B</b>). The payment link we sent you carries that code, so your payment is matched to your site no matter which phone number or email you used. You'll see your business name and site code at the top of this page and in your welcome email. Log in to the portal with the email you paid with and your site will be there.</p></details>
+    <details><summary>I paid from a different phone number or email. Is that a problem?</summary><p>No. Your site is matched by its site code, not by your phone number. If you ever log in with a different email or text us from a new number, just send us your site code and we'll connect it.</p></details>
     <details><summary>Do I need to create an account?</summary><p>No. Your account was created when you paid. Just log in with your email and the code we send you.</p></details>
     <details><summary>When will I be charged for hosting?</summary><p>If you chose hosting, the $39/month starts 30 days after today. You can update your card, see receipts, or cancel anytime from the Billing tab in your portal.</p></details>
     <details><summary>What if I change my mind?</summary><p>If your site hasn't been published yet, you can get a full refund within 7 days. See our <a href="refund.html">refund policy</a>.</p></details>
@@ -61,6 +66,33 @@
   </div>
   <div class="legal"><span>© 2026 Dolyn. One Web is a brand of Dolyn.</span><span>All rights reserved.</span></div>
 </div></footer>
+
+<script>
+(function () {
+  var id = new URLSearchParams(location.search).get('session_id');
+  var box = document.getElementById('mysite');
+  if (!id || !box) return;
+  var tries = 0;
+  function esc(t) { return String(t || '').replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function show(d) {
+    box.hidden = false;
+    if (d.matched) {
+      box.innerHTML = '<b>Your website: ' + esc(d.biz || 'your business') + '</b>' +
+        '<p>Site code: <code>' + esc(d.code) + '</code> &nbsp;(save it, just in case)</p>' +
+        '<p><a href="' + esc(d.site) + '" target="_blank" rel="noopener">Preview your site</a>. Not your business? Email <a href="mailto:hello@onewebonline.com">hello@onewebonline.com</a> and we\'ll fix it right away.</p>';
+    } else {
+      box.innerHTML = '<b>Payment received.</b><p>We\'re matching it to your website now. If you don\'t see your site in the portal within the hour, email <a href="mailto:hello@onewebonline.com">hello@onewebonline.com</a> with your business name.</p>';
+    }
+  }
+  function check() {
+    fetch('https://n8n-production-9be3db1c.up.railway.app/webhook/oneweb-thanks?session_id=' + encodeURIComponent(id))
+      .then(function (r) { return r.json(); })
+      .then(function (d) { if (d && d.ok) show(d); else if (++tries < 8) setTimeout(check, 2500); else show({ matched: false }); })
+      .catch(function () { if (++tries < 8) setTimeout(check, 2500); });
+  }
+  check();
+})();
+</script>
 <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "0cef8c8e73144c95a7aecd20fab9b1e4"}'></script>
 </body>
 </html>
