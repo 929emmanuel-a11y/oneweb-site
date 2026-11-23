@@ -46,7 +46,7 @@ textarea{min-height:90px;resize:vertical}
 .rules .rule{display:flex;gap:8px;margin-bottom:8px}.rules .rule input{flex:1}
 .savebar{position:sticky;bottom:16px;display:flex;justify-content:flex-end;gap:10px;align-items:center;margin-top:10px}
 .savebar span{color:var(--mut);font-size:13px}
-.itbl{width:100%;border-collapse:collapse;font-size:13px}.itbl th{text-align:left;font-weight:500;color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}.itbl td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}.itbl a{color:var(--gold2)}.ibar{width:80px;height:6px;background:var(--bg3);border-radius:9px;overflow:hidden;margin:6px 0 2px}.ibar div{height:100%;background:var(--gold)}
+.itbl{width:100%;border-collapse:collapse;font-size:13px}.itbl th{text-align:left;font-weight:500;color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}.itbl td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}.itbl a{color:var(--gold2)}.itbl .nowrap{white-space:nowrap}.caret,.eye{background:none;border:0;color:var(--mut);cursor:pointer;font-size:14px;padding:2px 4px}.caret:hover,.eye:hover{color:var(--txt)}.lrow.hot td{background:rgba(201,168,106,.06)}.vrow td{background:var(--bg3);border-bottom:1px solid var(--bg2);padding:7px 10px}.pill.hotp{color:#fb923c;background:rgba(251,146,60,.14)}.ibar{width:80px;height:6px;background:var(--bg3);border-radius:9px;overflow:hidden;margin:6px 0 2px}.ibar div{height:100%;background:var(--gold)}
 .chip{background:none;border:1px solid var(--line);color:var(--mut);border-radius:99px;padding:6px 12px;font-size:12px;cursor:pointer}.chip:hover{color:var(--txt)}.chip.on{background:var(--gold);border-color:var(--gold);color:#0a0a0a}
 .legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin:12px 0 4px}.lg{display:inline-flex;align-items:center;gap:7px;background:none;border:0;color:var(--txt);font-size:12px;cursor:pointer;padding:3px 0}.lg i{width:10px;height:10px;border-radius:3px;display:inline-block}.lg.off{opacity:.35;text-decoration:line-through}
 .tot{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-top:16px}.tot div{background:var(--bg3);border-radius:10px;padding:10px 12px}.tot b{display:block;font-size:22px;font-family:var(--serif);font-weight:400}.tot span{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em}
@@ -244,6 +244,35 @@ const fmtS = s => s < 60 ? s + 's' : Math.floor(s / 60) + 'm ' + String(s % 60).
 const TAPL = { call: 'Call', text: 'Text', estimate: 'Estimate', chat: 'Chat', nav: 'Menu', other: 'Other' };
 const styleOf = th => /theme-light/.test(th || '') ? 'Light' : /theme-warm/.test(th || '') ? 'Warm' : 'Dark';
 const cap = s => String(s || '').charAt(0).toUpperCase() + String(s || '').slice(1);
+
+let SHOWPH = {}, OPENL = {};
+const maskPh = p => { const d = String(p || '').replace(/\D/g, '').slice(-10); return d.length === 10 ? '(•••) •••-' + d.slice(6) : '•••'; };
+const prettyPh = p => { const d = String(p || '').replace(/\D/g, '').slice(-10); return d.length === 10 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : esc(p); };
+function leadsCard(visits) {
+  // one row per lead: who they are once, then every visit under the arrow
+  const by = {}; for (const v of visits) (by[v.site.slug] = by[v.site.slug] || { site: v.site, vs: [] }).vs.push(v);
+  const cv = {}; for (const c of (STATE.convos || [])) cv[c.phone] = c;
+  const ST = { new: 'New', preview_requested: 'Wants preview', preview_sent: 'Preview sent', ready_to_pay: 'Ready to pay', won: 'Paid', needs_human: 'Needs you', lost: 'Lost', opted_out: 'Opted out' };
+  const rows = Object.values(by).map(g => { const all = g.site.eng.length, c = cv[g.site.phone]; return Object.assign(g, { all, c, hot: !g.site.client && all >= 2 && !(c && ['won', 'opted_out', 'lost'].includes(c.status)) }); })
+    .sort((a, b) => (b.hot - a.hot) || (b.vs[0].at - a.vs[0].at));
+  if (!rows.length) return '<div class="card"><h2>Leads who opened their preview</h2><p class="note">No visits in this range yet. Every time a lead opens their preview it shows up here, and you get the same details on Telegram.</p></div>';
+  const avg = (a, f) => Math.round(a.reduce((x, y) => x + f(y), 0) / a.length);
+  const taps = vs => { const t = {}; vs.forEach(v => Object.entries(v.tp).forEach(([k, n]) => t[k] = (t[k] || 0) + n)); return Object.entries(t).map(([k, n]) => `<span class="pill ${k === 'call' || k === 'estimate' || k === 'text' ? 'won' : ''}">${TAPL[k] || k}${n > 1 ? ' ×' + n : ''}</span>`).join(' ') || '<span class="note">none</span>'; };
+  const body = rows.map(g => { const s = g.site, k = s.slug, open = OPENL[k], shown = SHOWPH[k];
+    return `<tr class="lrow ${g.hot ? 'hot' : ''}">
+      <td><button class="caret" data-open="${esc(k)}" title="Show every visit">${open ? '▾' : '▸'}</button></td>
+      <td>${g.hot ? '<span class="pill hotp">🔥 Hot</span> ' : ''}<a href="https://${esc(k)}.onewebonline.com/?qa=1" target="_blank" rel="noopener">${esc(s.name)}</a><br><span class="note">${s.owner ? esc(s.owner) + ' · ' : ''}${esc(s.city)} · ${esc(cap(s.trade))}</span></td>
+      <td class="nowrap">${s.phone ? `<span class="ph">${shown ? prettyPh(s.phone) : maskPh(s.phone)}</span> <button class="eye" data-eye="${esc(k)}" title="${shown ? 'Hide' : 'Show'} number">${shown ? '🙈' : '👁'}</button>` : '<span class="note">–</span>'}</td>
+      <td><b>${g.all}×</b><br><span class="note">last ${new Date(g.vs[0].at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span></td>
+      <td>${fmtS(avg(g.vs, v => v.s))}<br><span class="note">avg</span></td>
+      <td><div class="ibar"><div style="width:${avg(g.vs, v => v.sc)}%"></div></div><span class="note">${avg(g.vs, v => v.sc)}% avg</span></td>
+      <td>${taps(g.vs)}</td>
+      <td>${s.client ? '<span class="pill won">Client</span>' : g.c ? `<span class="pill ${g.c.status}">${ST[g.c.status] || g.c.status}</span>` : '<span class="note">No reply yet</span>'}</td></tr>`
+      + (open ? g.vs.map((v, i) => `<tr class="vrow"><td></td><td class="note">Visit ${g.vs.length - i} · ${new Date(v.at).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</td><td class="note">${v.dev === 'm' ? 'Phone' : 'Computer'}</td><td></td><td>${fmtS(v.s)}</td><td><div class="ibar"><div style="width:${v.sc}%"></div></div><span class="note">${v.sc}%</span></td><td>${taps([v])}</td><td></td></tr>`).join('') : ''); }).join('');
+  const hot = rows.filter(r => r.hot).length;
+  return `<div class="card"><h2>Leads who opened their preview</h2><p class="note" style="margin-top:-8px">One row per lead, hot leads first. 🔥 = opened 2+ times and hasn't paid: worth a personal call. Tap ▸ to see every visit, 👁 to show the phone number.${hot ? ` <b>${hot} hot right now.</b>` : ''}</p>
+    <div style="overflow-x:auto"><table class="itbl"><tr><th></th><th>Business</th><th>Phone</th><th>Opened</th><th>Time</th><th>Scrolled</th><th>Tapped</th><th>Status</th></tr>${body}</table></div></div>`;
+}
 function insights() {
   if (!INS) return `<h1>Insights</h1><p class="sub">Loading…</p>`;
   const since = IRANGE === 'all' ? 0 : IRANGE === '1' ? new Date(new Date().toDateString()).getTime() : Date.now() - Number(IRANGE) * 864e5;
@@ -263,13 +292,7 @@ function insights() {
   return `<h1>Insights</h1><p class="sub">Who opened their preview, how long they stayed, how far they scrolled and what they tapped. Your own test visits are not counted.</p>
   <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px">${IR.map(([k, l]) => `<button class="chip ${IRANGE === k ? 'on' : ''}" data-ir="${k}">${l}</button>`).join('')}</div>
   <div class="grid g4 kpis">${kpi(opened.length, 'Previews opened')}${kpi(visits.length, 'Visits')}${kpi(fmtS(avg(visits, v => v.s)), 'Avg time on site')}${kpi(avg(visits, v => v.sc) + '%', 'Avg scrolled')}</div>
-  <div class="card"><h2>Recent visits</h2>${visits.length ? tbl(['When', 'Business', 'Trade', 'Time', 'Scrolled', 'Tapped', 'Device'], visits.slice(0, 60).map(v => `<tr>
-      <td class="note">${new Date(v.at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</td>
-      <td><a href="https://${esc(v.site.slug)}.onewebonline.com/?qa=1" target="_blank" rel="noopener">${esc(v.site.name)}</a>${v.site.owner ? `<br><span class="note">${esc(v.site.owner)}</span>` : ''}<br><span class="note">${esc(v.site.city)}${v.site.phone ? ' · ' + esc(v.site.phone) : ''}</span></td>
-      <td>${esc(cap(v.site.trade))}</td><td>${fmtS(v.s)}</td>
-      <td><div class="ibar"><div style="width:${v.sc}%"></div></div><span class="note">${v.sc}%</span></td>
-      <td>${Object.entries(v.tp).map(([k, n]) => `<span class="pill ${k === 'call' || k === 'estimate' ? 'won' : ''}">${TAPL[k] || k}${n > 1 ? ' ×' + n : ''}</span>`).join(' ') || '<span class="note">none</span>'}</td>
-      <td class="note">${v.dev === 'm' ? 'Phone' : 'Computer'}</td></tr>`).join('')) : '<p class="note">No visits in this range yet. Every time a lead opens their preview it shows up here, and you get the same details on Telegram.</p>'}</div>
+  ${leadsCard(visits)}
   <div class="card"><h2>By trade</h2><p class="note" style="margin-top:-8px">Which kinds of businesses look at their site the longest and tap to call. Give it a few hundred visits before trusting the differences.</p>
     ${Object.keys(byTrade).length ? tbl(['Trade', 'Previews built', 'Opened', 'Visits', 'Avg time', 'Avg scrolled', 'Tapped call', 'Tapped any button'],
       Object.entries(byTrade).sort((a, b) => b[1].length - a[1].length).map(([t, vs]) => row(esc(cap(t)), vs, `<td>${(INS.built || {})[t] || 0}</td><td>${openedBy[t] || 0}</td>`)).join('')) : '<p class="note">Nothing yet.</p>'}</div>
@@ -278,6 +301,8 @@ function insights() {
       Object.entries(byLook).sort((a, b) => avg(b[1], v => v.s) - avg(a[1], v => v.s)).map(([t, vs]) => row(esc(cap(t)), vs, `<td><a href="https://${esc(best(vs).site.slug)}.onewebonline.com/?qa=1" target="_blank" rel="noopener">View</a></td>`)).join('')) : '<p class="note">Nothing yet.</p>'}</div>`;
 }
 function bindInsights() {
+  document.querySelectorAll('[data-eye]').forEach(b => b.onclick = () => { SHOWPH[b.dataset.eye] = !SHOWPH[b.dataset.eye]; render(); });
+  document.querySelectorAll('[data-open]').forEach(b => b.onclick = () => { OPENL[b.dataset.open] = !OPENL[b.dataset.open]; render(); });
   document.querySelectorAll('[data-ir]').forEach(b => b.onclick = () => { IRANGE = b.dataset.ir; try { localStorage.setItem('ow_irange', IRANGE); } catch (e) {} render(); });
 }
 
