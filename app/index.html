@@ -46,6 +46,9 @@ textarea{min-height:90px;resize:vertical}
 .rules .rule{display:flex;gap:8px;margin-bottom:8px}.rules .rule input{flex:1}
 .savebar{position:sticky;bottom:16px;display:flex;justify-content:flex-end;gap:10px;align-items:center;margin-top:10px}
 .savebar span{color:var(--mut);font-size:13px}
+.chip{background:none;border:1px solid var(--line);color:var(--mut);border-radius:99px;padding:6px 12px;font-size:12px;cursor:pointer}.chip:hover{color:var(--txt)}.chip.on{background:var(--gold);border-color:var(--gold);color:#0a0a0a}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin:12px 0 4px}.lg{display:inline-flex;align-items:center;gap:7px;background:none;border:0;color:var(--txt);font-size:12px;cursor:pointer;padding:3px 0}.lg i{width:10px;height:10px;border-radius:3px;display:inline-block}.lg.off{opacity:.35;text-decoration:line-through}
+.tot{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-top:16px}.tot div{background:var(--bg3);border-radius:10px;padding:10px 12px}.tot b{display:block;font-size:22px;font-family:var(--serif);font-weight:400}.tot span{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em}
 .pill{display:inline-block;font-size:11px;padding:3px 9px;border-radius:99px;background:var(--bg3);color:var(--mut);text-transform:uppercase;letter-spacing:.06em}
 .pill.preview_requested{color:var(--gold2)}.pill.ready_to_pay,.pill.won{color:var(--ok)}.pill.needs_human{color:var(--warn)}.pill.lost,.pill.opted_out{color:var(--bad)}
 .convos{display:grid;grid-template-columns:320px 1fr;gap:18px}
@@ -159,6 +162,78 @@ function dialStatus(){
   if (!d.connectionId || !(STATE.settings.ourNumbers || []).length) return ['Needs setup', 'needs_human'];
   return ['On', 'ready_to_pay'];
 }
+/* ---------- overview: activity over time ---------- */
+const MET = [
+  ['scraped', 'Leads scraped', '#94a3b8'], ['landlines', 'Landlines found', '#64748b'],
+  ['calls', 'Calls made', '#60a5fa'], ['voicemails', 'Voicemails dropped', '#a78bfa'], ['talked', 'Talked to a person', '#22d3ee'],
+  ['replies', 'Replies', '#34d399'], ['followups', 'Follow-up texts', '#fbbf24'], ['previews', 'Previews sent', '#f472b6'],
+  ['meetings', 'Meetings booked', '#e879f9'], ['ready', 'Ready to pay', '#fb923c'], ['won', 'Won', '#c9a86a'], ['optouts', 'Opted out', '#f87171']];
+const RANGES = [['today', 'Today'], ['yesterday', 'Yesterday'], ['3', '3 days'], ['5', '5 days'], ['7', '7 days'], ['14', '2 weeks'], ['30', '30 days'], ['90', '3 months'], ['180', '6 months'], ['year', 'This year']];
+let RANGE = 'today', HIDE = {}, LOGY = false;
+try { RANGE = localStorage.getItem('ow_range') || 'today'; HIDE = JSON.parse(localStorage.getItem('ow_hide') || '{}'); LOGY = localStorage.getItem('ow_logy') === '1'; } catch (e) {}
+const etKey = ts => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ts));
+const etHour = ts => Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', hourCycle: 'h23' }).format(new Date(ts)));
+function dayData(d) {   // one Eastern day: closer/lead numbers + dialer outcomes
+  const s = Object.assign({}, (STATE.series || {})[d] || {}), o = ((DSTATS || {}).outcomes || {})[d];
+  if (o) { s.calls = (o.answered || 0) + (o.noAnswer || 0) + (o.busy || 0) + (o.failed || 0); s.voicemails = o.voicemail || 0; s.talked = o.human || 0; }
+  return s;
+}
+function rangeBuckets() {
+  const now = Date.now(), today = etKey(now);
+  if (RANGE === 'today' || RANGE === 'yesterday') {   // hourly, for the texting side; dialer and scraping are daily totals
+    const day = RANGE === 'today' ? today : etKey(now - 864e5);
+    const hrs = Array.from({ length: 24 }, (_, h) => ({ label: (h % 12 || 12) + (h < 12 ? 'a' : 'p'), v: {} }));
+    for (const [t, k] of (STATE.recent || [])) if (etKey(t) === day) { const b = hrs[etHour(t)].v; b[k] = (b[k] || 0) + 1; }
+    const lastH = RANGE === 'today' ? etHour(now) + 1 : 24;
+    return { buckets: hrs.slice(0, lastH), totals: dayData(day), hourly: true, title: RANGE === 'today' ? 'Today, by hour' : 'Yesterday, by hour' };
+  }
+  let n = RANGE === 'year' ? Math.floor((now - new Date(new Date().getFullYear(), 0, 1)) / 864e5) + 1 : Number(RANGE);
+  const days = []; for (let i = n - 1; i >= 0; i--) days.push(etKey(now - i * 864e5));
+  const uniq = [...new Set(days)];
+  let buckets = uniq.map(d => ({ label: new Date(d + 'T12:00:00').toLocaleDateString([], { month: 'short', day: 'numeric' }), v: dayData(d) }));
+  if (buckets.length > 60) {   // long ranges: one point per week
+    const wk = []; for (let i = 0; i < buckets.length; i += 7) { const g = buckets.slice(i, i + 7), v = {}; g.forEach(b => Object.entries(b.v).forEach(([k, x]) => v[k] = (v[k] || 0) + x)); wk.push({ label: g[0].label, v }); } buckets = wk;
+  }
+  const totals = {}; uniq.forEach(d => Object.entries(dayData(d)).forEach(([k, x]) => totals[k] = (totals[k] || 0) + x));
+  return { buckets, totals, hourly: false, title: 'Last ' + (RANGES.find(r => r[0] === RANGE) || [0, ''])[1] + (buckets.length < uniq.length ? ', by week' : ', by day') };
+}
+function chartSVG(buckets, keys) {
+  const W = 900, H = 260, L = 34, R = 10, T = 10, B = 26, n = buckets.length;
+  const max = Math.max(1, ...buckets.flatMap(b => keys.map(k => b.v[k] || 0)));
+  const y = v => T + (H - T - B) * (1 - (LOGY ? Math.log10(1 + v) / Math.log10(1 + max) : v / max));
+  const x = i => n === 1 ? (L + W - R) / 2 : L + (W - L - R) * i / (n - 1);
+  const ticks = LOGY ? [0, 1, 10, 100, 1000].filter(t => t <= max * 1.01) : [0, Math.round(max / 2), max].filter((t, i, a) => a.indexOf(t) === i);
+  const every = Math.ceil(n / 10);
+  let g = ticks.map(t => `<line x1="${L}" x2="${W - R}" y1="${y(t)}" y2="${y(t)}" stroke="rgba(255,255,255,.07)"/><text x="${L - 6}" y="${y(t) + 4}" text-anchor="end" font-size="11" fill="#8a8580">${t}</text>`).join('');
+  g += buckets.map((b, i) => i % every === 0 || i === n - 1 ? `<text x="${x(i)}" y="${H - 6}" text-anchor="${n > 1 && i === n - 1 ? 'end' : i === 0 && n > 1 ? 'start' : 'middle'}" font-size="11" fill="#8a8580">${b.label}</text>` : '').join('');
+  for (const k of keys) {
+    const col = MET.find(m => m[0] === k)[2];
+    const pts = buckets.map((b, i) => [x(i), y(b.v[k] || 0), b.v[k] || 0]);
+    if (n > 1) g += `<polyline fill="none" stroke="${col}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" points="${pts.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ')}"/>`;
+    g += pts.map((p, i) => p[2] ? `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.2" fill="${col}"><title>${esc(buckets[i].label)}: ${p[2]} ${esc(MET.find(m => m[0] === k)[1].toLowerCase())}</title></circle>` : '').join('');
+  }
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;max-height:300px">${g}</svg>`;
+}
+function activity() {
+  const R = rangeBuckets();
+  const keys = MET.map(m => m[0]).filter(k => !HIDE[k]);
+  const live = RANGE === 'today';
+  return `<div class="card"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+      <h2 style="margin:0">Activity ${live ? '<span class="pill ready_to_pay" style="font-family:var(--sans);font-size:11px;vertical-align:middle">Live</span>' : ''}</h2>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">${RANGES.map(([k, l]) => `<button class="chip ${RANGE === k ? 'on' : ''}" data-range="${k}">${l}</button>`).join('')}</div></div>
+    <p class="note" style="margin:0 0 8px">${R.title}.${R.hourly ? ' Texts by the hour; calls and scraping are day totals below.' : ''} ${live ? 'Updates every 30 seconds while this page is open.' : ''}</p>
+    ${chartSVG(R.buckets, keys)}
+    <div class="legend">${MET.map(([k, l, c]) => `<button class="lg ${HIDE[k] ? 'off' : ''}" data-met="${k}"><i style="background:${c}"></i>${l}</button>`).join('')}
+      <button class="lg" id="logy" title="Makes small numbers visible next to big ones">${LOGY ? 'Scale: log' : 'Scale: normal'}</button></div>
+    <div class="tot">${MET.map(([k, l, c]) => `<div style="border-top:3px solid ${c}"><b>${(R.totals[k] || 0).toLocaleString()}</b><span>${l}</span></div>`).join('')}</div>
+  </div>`;
+}
+function bindActivity() {
+  document.querySelectorAll('[data-range]').forEach(b => b.onclick = () => { RANGE = b.dataset.range; try { localStorage.setItem('ow_range', RANGE); } catch (e) {} render(); });
+  document.querySelectorAll('[data-met]').forEach(b => b.onclick = () => { HIDE[b.dataset.met] = !HIDE[b.dataset.met]; try { localStorage.setItem('ow_hide', JSON.stringify(HIDE)); } catch (e) {} render(); });
+  const lg = document.getElementById('logy'); if (lg) lg.onclick = () => { LOGY = !LOGY; try { localStorage.setItem('ow_logy', LOGY ? '1' : '0'); } catch (e) {} render(); };
+}
+
 function overview(){
   const p = STATE.pipeline, s = STATE.settings;
   const rows = [
@@ -174,6 +249,7 @@ function overview(){
     <div class="card kpi"><span>Reviews</span><b>${(STATE.reviews||[]).length}</b></div>
     <div class="card kpi hide"><span>Daily goal</span><b>${(s.dialer||{}).dailyTarget ?? 500}</b></div>
   </div>
+  ${activity()}
   <div class="card"><h2>Pipeline</h2><div class="funnel">
     ${rows.map(([l,v]) => v === null
       ? `<div class="frow dim"><span>${l}</span><div class="bar"></div><span class="soon">soon</span></div>`
@@ -498,6 +574,7 @@ function markDirty(){ DIRTY = true; const m = $('#savemsg'); if (m) m.textConten
 function ladderPreview(){ const el = $('#ladder'); if (!el) return; const s = DRAFT; const steps = [s.listPrice, s.commitPrice].concat(s.discountSteps||[]).filter(n => n >= s.floorPrice); el.textContent = steps.map(n => '$'+n).join(' → ') + `  (floor $${s.floorPrice})`; }
 
 function bind(){
+  bindActivity();
   document.querySelectorAll('[data-k]').forEach(el => el.oninput = el.onchange = () => {
     const k = el.dataset.k; let v = el.type === 'checkbox' ? el.checked : el.value;
     if ('num' in el.dataset) v = Number(v);
