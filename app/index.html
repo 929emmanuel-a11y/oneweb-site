@@ -49,7 +49,7 @@ textarea{min-height:90px;resize:vertical}
 .itbl{width:100%;border-collapse:collapse;font-size:13px}.itbl th{text-align:left;font-weight:500;color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}.itbl td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}.itbl a{color:var(--gold2)}.itbl .nowrap{white-space:nowrap}.caret,.eye{background:none;border:0;color:var(--mut);cursor:pointer;font-size:14px;padding:2px 4px}.caret:hover,.eye:hover{color:var(--txt)}.lrow.hot td{background:rgba(201,168,106,.06)}.vrow td{background:var(--bg3);border-bottom:1px solid var(--bg2);padding:7px 10px}.pill.hotp{color:#fb923c;background:rgba(251,146,60,.14)}.ibar{width:80px;height:6px;background:var(--bg3);border-radius:9px;overflow:hidden;margin:6px 0 2px}.ibar div{height:100%;background:var(--gold)}
 .chip{background:none;border:1px solid var(--line);color:var(--mut);border-radius:99px;padding:6px 12px;font-size:12px;cursor:pointer}.chip:hover{color:var(--txt)}.chip.on{background:var(--gold);border-color:var(--gold);color:#0a0a0a}
 .legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin:12px 0 4px}.lg{display:inline-flex;align-items:center;gap:7px;background:none;border:0;color:var(--txt);font-size:12px;cursor:pointer;padding:3px 0}.lg i{width:10px;height:10px;border-radius:3px;display:inline-block}.lg.off{opacity:.35;text-decoration:line-through}
-.tot{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-top:16px}.tot div{background:var(--bg3);border-radius:10px;padding:10px 12px}.tot b{display:block;font-size:22px;font-family:var(--serif);font-weight:400}.tot span{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em}
+.tot{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-top:6px}.tot div,.totc{background:var(--bg3);border-radius:10px;padding:10px 12px;border:0;text-align:left;color:var(--txt);cursor:pointer;font:inherit}.totc:hover{outline:1px solid var(--line)}.totc.on{outline:1px solid var(--gold)}.totc b{display:block;font-size:22px;font-family:var(--serif);font-weight:400}.totc span{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em}.drill{margin-top:16px;border:1px solid;border-radius:14px;padding:16px;background:var(--bg2)}input[type=date]{background:var(--bg3);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:6px 8px;margin-left:6px;color-scheme:dark}.tot b{display:block;font-size:22px;font-family:var(--serif);font-weight:400}.tot span{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em}
 .pill{display:inline-block;font-size:11px;padding:3px 9px;border-radius:99px;background:var(--bg3);color:var(--mut);text-transform:uppercase;letter-spacing:.06em}
 .pill.preview_requested{color:var(--gold2)}.pill.ready_to_pay,.pill.won{color:var(--ok)}.pill.needs_human{color:var(--warn)}.pill.lost,.pill.opted_out{color:var(--bad)}
 .convos{display:grid;grid-template-columns:320px 1fr;gap:18px}
@@ -170,34 +170,48 @@ const MET = [
   ['calls', 'Calls made', '#60a5fa'], ['voicemails', 'Voicemails dropped', '#a78bfa'], ['talked', 'Talked to a person', '#22d3ee'],
   ['replies', 'Replies', '#34d399'], ['followups', 'Follow-up texts', '#fbbf24'], ['previews', 'Previews sent', '#f472b6'],
   ['meetings', 'Meetings booked', '#e879f9'], ['ready', 'Ready to pay', '#fb923c'], ['won', 'Won', '#c9a86a'], ['optouts', 'Opted out', '#f87171']];
-const RANGES = [['today', 'Today'], ['yesterday', 'Yesterday'], ['3', '3 days'], ['5', '5 days'], ['7', '7 days'], ['14', '2 weeks'], ['30', '30 days'], ['90', '3 months'], ['180', '6 months'], ['year', 'This year']];
-let RANGE = 'today', HIDE = {}, LOGY = false;
-try { RANGE = localStorage.getItem('ow_range') || 'today'; HIDE = JSON.parse(localStorage.getItem('ow_hide') || '{}'); LOGY = localStorage.getItem('ow_logy') === '1'; } catch (e) {}
+const RANGES = [['today', 'Today'], ['yesterday', 'Yesterday'], ['3', '3 days'], ['5', '5 days'], ['7', '7 days'], ['14', '2 weeks'], ['30', '30 days'], ['90', '3 months'], ['180', '6 months'], ['year', 'This year'], ['all', 'All time'], ['custom', 'Custom']];
+let RANGE = 'today', HIDE = {}, LOGY = false, CFROM = '', CTO = '', DRILL = null;
+try { RANGE = localStorage.getItem('ow_range') || 'today'; HIDE = JSON.parse(localStorage.getItem('ow_hide') || '{}'); LOGY = localStorage.getItem('ow_logy') === '1'; CFROM = localStorage.getItem('ow_cfrom') || ''; CTO = localStorage.getItem('ow_cto') || ''; } catch (e) {}
 const etKey = ts => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ts));
 const etHour = ts => Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', hourCycle: 'h23' }).format(new Date(ts)));
+const money = n => '$' + Math.round(n || 0).toLocaleString();
 function dayData(d) {   // one Eastern day: closer/lead numbers + dialer outcomes
   const s = Object.assign({}, (STATE.series || {})[d] || {}), o = ((DSTATS || {}).outcomes || {})[d];
   if (o) { s.calls = (o.answered || 0) + (o.noAnswer || 0) + (o.busy || 0) + (o.failed || 0); s.voicemails = o.voicemail || 0; s.talked = o.human || 0; }
   return s;
 }
+function firstDay() {   // earliest day anything happened
+  const ks = Object.keys(STATE.series || {}).concat(Object.keys((DSTATS || {}).outcomes || {})).sort();
+  return ks[0] || etKey(Date.now());
+}
+const addDay = (d, n) => { const x = new Date(d + 'T12:00:00Z'); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
+function rangeDays() {   // [first, last] Eastern dates of the chosen range
+  const today = etKey(Date.now());
+  if (RANGE === 'today') return [today, today];
+  if (RANGE === 'yesterday') { const y = addDay(today, -1); return [y, y]; }
+  if (RANGE === 'year') return [today.slice(0, 4) + '-01-01', today];
+  if (RANGE === 'all') return [firstDay() < today ? firstDay() : today, today];
+  if (RANGE === 'custom') { let a = CFROM || addDay(today, -6), b = CTO || today; if (a > b) [a, b] = [b, a]; return [a, b]; }
+  return [addDay(today, -(Number(RANGE) - 1)), today];
+}
 function rangeBuckets() {
-  const now = Date.now(), today = etKey(now);
-  if (RANGE === 'today' || RANGE === 'yesterday') {   // hourly, for the texting side; dialer and scraping are daily totals
-    const day = RANGE === 'today' ? today : etKey(now - 864e5);
+  const now = Date.now(), [a, b] = rangeDays();
+  if (a === b && (RANGE === 'today' || RANGE === 'yesterday' || RANGE === 'custom')) {   // one day: hourly for the texting side; dialer and scraping are day totals
     const hrs = Array.from({ length: 24 }, (_, h) => ({ label: (h % 12 || 12) + (h < 12 ? 'a' : 'p'), v: {} }));
-    for (const [t, k] of (STATE.recent || [])) if (etKey(t) === day) { const b = hrs[etHour(t)].v; b[k] = (b[k] || 0) + 1; }
-    const lastH = RANGE === 'today' ? etHour(now) + 1 : 24;
-    return { buckets: hrs.slice(0, lastH), totals: dayData(day), hourly: true, title: RANGE === 'today' ? 'Today, by hour' : 'Yesterday, by hour' };
+    for (const [t, k] of (STATE.recent || [])) if (etKey(t) === a) { const x = hrs[etHour(t)].v; x[k] = (x[k] || 0) + 1; }
+    const lastH = a === etKey(now) ? etHour(now) + 1 : 24;
+    const nice = new Date(a + 'T12:00:00').toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+    return { buckets: hrs.slice(0, lastH), totals: dayData(a), hourly: true, title: (RANGE === 'today' ? 'Today' : RANGE === 'yesterday' ? 'Yesterday' : nice) + ', by hour', days: [a] };
   }
-  let n = RANGE === 'year' ? Math.floor((now - new Date(new Date().getFullYear(), 0, 1)) / 864e5) + 1 : Number(RANGE);
-  const days = []; for (let i = n - 1; i >= 0; i--) days.push(etKey(now - i * 864e5));
-  const uniq = [...new Set(days)];
+  const uniq = []; for (let d = a; d <= b && uniq.length < 2000; d = addDay(d, 1)) uniq.push(d);
   let buckets = uniq.map(d => ({ label: new Date(d + 'T12:00:00').toLocaleDateString([], { month: 'short', day: 'numeric' }), v: dayData(d) }));
   if (buckets.length > 60) {   // long ranges: one point per week
-    const wk = []; for (let i = 0; i < buckets.length; i += 7) { const g = buckets.slice(i, i + 7), v = {}; g.forEach(b => Object.entries(b.v).forEach(([k, x]) => v[k] = (v[k] || 0) + x)); wk.push({ label: g[0].label, v }); } buckets = wk;
+    const wk = []; for (let i = 0; i < buckets.length; i += 7) { const g = buckets.slice(i, i + 7), v = {}; g.forEach(x => Object.entries(x.v).forEach(([k, n]) => v[k] = (v[k] || 0) + n)); wk.push({ label: g[0].label, v }); } buckets = wk;
   }
   const totals = {}; uniq.forEach(d => Object.entries(dayData(d)).forEach(([k, x]) => totals[k] = (totals[k] || 0) + x));
-  return { buckets, totals, hourly: false, title: 'Last ' + (RANGES.find(r => r[0] === RANGE) || [0, ''])[1] + (buckets.length < uniq.length ? ', by week' : ', by day') };
+  const lab = RANGE === 'all' ? 'All time' : RANGE === 'custom' ? `${new Date(a + 'T12:00:00').toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })} to ${new Date(b + 'T12:00:00').toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}` : RANGE === 'year' ? 'This year' : 'Last ' + (RANGES.find(r => r[0] === RANGE) || [0, ''])[1];
+  return { buckets, totals, hourly: false, title: lab + (buckets.length < uniq.length ? ', by week' : ', by day'), days: uniq };
 }
 function chartSVG(buckets, keys) {
   const W = 900, H = 260, L = 34, R = 10, T = 10, B = 26, n = buckets.length;
@@ -216,23 +230,54 @@ function chartSVG(buckets, keys) {
   }
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;max-height:300px">${g}</svg>`;
 }
+function drillList(k, days) {   // the people behind one card, for the chosen dates
+  const inR = t => days.includes(etKey(t));
+  const when = t => new Date(t).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const row = (a, b, c, d) => `<tr><td class="note nowrap">${a}</td><td>${b}</td><td class="nowrap">${c}</td><td>${d || ''}</td></tr>`;
+  const ph = p => p ? `<span class="note">${esc(prettyPh(p))}</span>` : '';
+  if (k === 'calls' || k === 'talked') {
+    const OUT = { wants_to_see_site: 'Wants to see site', busy_call_back: 'Busy, call back', not_interested: 'Not interested', other: 'Other' };
+    const list = (STATE.calls || []).filter(c => inR(c.at));
+    return { note: k === 'calls' ? 'Calls where Emma talked to someone (voicemail drops and no-answers are counted on the card but not listed one by one).' : 'Everyone Emma had a conversation with.', head: ['When', 'Business', 'Phone', 'Outcome'],
+      rows: list.map(c => row(when(c.at), `${esc(c.name || '')}${c.owner ? `<br><span class="note">${esc(c.owner)}</span>` : ''}${c.city ? ' <span class="note">· ' + esc(c.city) + '</span>' : ''}`, ph(c.phone), `${esc(OUT[c.outcome] || c.outcome || '')}${c.secs ? ' <span class="note">· ' + c.secs + 's</span>' : ''}`)) };
+  }
+  if (['voicemails', 'scraped', 'landlines'].includes(k)) return { note: k === 'voicemails' ? 'Voicemail drops are only stored as daily totals, so there is no list of names for this one.' : 'Scraped leads are counted per run; the lead lists themselves live in the lead cleaner.', head: [], rows: [] };
+  const list = (STATE.items || []).filter(i => i.k === k && inR(i.t));
+  const total = k === 'revenue' ? ' · total ' + money(list.reduce((a, i) => a + (i.amt || 0), 0)) : '';
+  return { note: list.length + (list.length === 1 ? ' entry' : ' entries') + total, head: ['When', 'Business', 'Phone', k === 'revenue' ? 'Amount' : 'Details'],
+    rows: list.map(i => row(when(i.t), esc(i.name || 'Unknown business') + (i.city ? ' <span class="note">· ' + esc(i.city) + '</span>' : ''), ph(i.phone), k === 'revenue' ? `<b>${money(i.amt)}</b>${i.x ? ' <span class="note">' + esc(i.x) + '</span>' : ''}` : (i.x ? `<span class="note">${esc(String(i.x).replace(/^for (.{10}).*/, 'for $1'))}</span>` : ''))) };
+}
 function activity() {
   const R = rangeBuckets();
   const keys = MET.map(m => m[0]).filter(k => !HIDE[k]);
-  const live = RANGE === 'today';
+  const live = R.days.includes(etKey(Date.now()));
+  const CARDS = MET.concat([['revenue', 'Money made', '#4ade80']]);
+  const [a, b] = rangeDays();
+  let drill = '';
+  if (DRILL) { const m = CARDS.find(x => x[0] === DRILL), d = drillList(DRILL, R.days);
+    drill = `<div class="drill" style="border-color:${m[2]}"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h3 style="margin:0">${esc(m[1])} <span class="note" style="font-weight:400">· ${esc(R.title.replace(/, by (hour|day|week)$/, ''))}</span></h3><button class="chip" id="drillx">Close</button></div>
+      <p class="note" style="margin:6px 0 10px">${d.note}</p>${d.rows.length ? `<div style="overflow-x:auto;max-height:420px;overflow-y:auto"><table class="itbl"><tr>${d.head.map(h => `<th>${h}</th>`).join('')}</tr>${d.rows.join('')}</table></div>` : (d.head.length ? '<p class="note">Nobody in this range.</p>' : '')}</div>`; }
   return `<div class="card"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
       <h2 style="margin:0">Activity ${live ? '<span class="pill ready_to_pay" style="font-family:var(--sans);font-size:11px;vertical-align:middle">Live</span>' : ''}</h2>
       <div style="display:flex;gap:6px;flex-wrap:wrap">${RANGES.map(([k, l]) => `<button class="chip ${RANGE === k ? 'on' : ''}" data-range="${k}">${l}</button>`).join('')}</div></div>
+    ${RANGE === 'custom' ? `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 10px"><label class="note">From <input type="date" id="cfrom" value="${a}" max="${etKey(Date.now())}"></label><label class="note">To <input type="date" id="cto" value="${b}" max="${etKey(Date.now())}"></label></div>` : ''}
     <p class="note" style="margin:0 0 8px">${R.title}.${R.hourly ? ' Texts by the hour; calls and scraping are day totals below.' : ''} ${live ? 'Updates every 30 seconds while this page is open.' : ''}</p>
     ${chartSVG(R.buckets, keys)}
     <div class="legend">${MET.map(([k, l, c]) => `<button class="lg ${HIDE[k] ? 'off' : ''}" data-met="${k}"><i style="background:${c}"></i>${l}</button>`).join('')}
       <button class="lg" id="logy" title="Makes small numbers visible next to big ones">${LOGY ? 'Scale: log' : 'Scale: normal'}</button></div>
-    <div class="tot">${MET.map(([k, l, c]) => `<div style="border-top:3px solid ${c}"><b>${(R.totals[k] || 0).toLocaleString()}</b><span>${l}</span></div>`).join('')}</div>
+    <p class="note" style="margin:14px 0 6px">Tap any box to see who's behind the number.</p>
+    <div class="tot">${CARDS.map(([k, l, c]) => `<button class="totc ${DRILL === k ? 'on' : ''}" data-drill="${k}" style="border-top:3px solid ${c}"><b>${k === 'revenue' ? money(R.totals[k]) : (R.totals[k] || 0).toLocaleString()}</b><span>${l}</span></button>`).join('')}</div>
+    ${drill}
   </div>`;
 }
 function bindActivity() {
   document.querySelectorAll('[data-range]').forEach(b => b.onclick = () => { RANGE = b.dataset.range; try { localStorage.setItem('ow_range', RANGE); } catch (e) {} render(); });
   document.querySelectorAll('[data-met]').forEach(b => b.onclick = () => { HIDE[b.dataset.met] = !HIDE[b.dataset.met]; try { localStorage.setItem('ow_hide', JSON.stringify(HIDE)); } catch (e) {} render(); });
+  document.querySelectorAll('[data-drill]').forEach(b => b.onclick = () => { DRILL = DRILL === b.dataset.drill ? null : b.dataset.drill; render(); });
+  const dx = document.getElementById('drillx'); if (dx) dx.onclick = () => { DRILL = null; render(); };
+  const cf = document.getElementById('cfrom'), ct = document.getElementById('cto');
+  if (cf) cf.onchange = () => { CFROM = cf.value; try { localStorage.setItem('ow_cfrom', CFROM); } catch (e) {} render(); };
+  if (ct) ct.onchange = () => { CTO = ct.value; try { localStorage.setItem('ow_cto', CTO); } catch (e) {} render(); };
   const lg = document.getElementById('logy'); if (lg) lg.onclick = () => { LOGY = !LOGY; try { localStorage.setItem('ow_logy', LOGY ? '1' : '0'); } catch (e) {} render(); };
 }
 
