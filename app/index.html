@@ -17,6 +17,7 @@ aside{border-right:1px solid var(--line);padding:24px 16px;position:sticky;top:0
 .tab{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;color:var(--mut);border:0;background:none;text-align:left;width:100%}
 .tab:hover{color:var(--txt);background:var(--bg2)}.tab.on{color:var(--txt);background:var(--bg3)}
 .tab i{width:7px;height:7px;border-radius:50%;background:var(--line)}.tab.on i{background:var(--gold)}
+aside .grp{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--mut);padding:16px 12px 4px;opacity:.8}.mtabs .grp{display:none}
 aside .foot{margin-top:auto;font-size:12px;color:var(--mut);padding:0 8px}
 main{padding:32px clamp(16px,4vw,48px);max-width:1200px;width:100%}
 h1{font-family:var(--serif);font-weight:400;font-size:44px;margin:0 0 4px;letter-spacing:-.01em}
@@ -109,7 +110,13 @@ const CHAT = 'https://n8n-production-9be3db1c.up.railway.app/webhook/oneweb-test
 const DIAL = 'https://n8n-production-9be3db1c.up.railway.app/webhook/oneweb-dialer-stats';
 let DSTATS = null, SITEBK = [], CLIENTS = [];
 const EDIT = 'https://n8n-production-9be3db1c.up.railway.app/webhook/oneweb-preview-edit';
-const TABS = [['overview','Overview'],['convos','Conversations'],['closer','AI Closer'],['pricing','Pricing'],['reviews','Reviews'],['bookings','Bookings'],['results','Results'],['clients','Clients'],['voice','Phone & Dialer'],['test','Test Chat']];
+// Sidebar groups. Keys map to the view functions below.
+const NAVG = [
+  ['', [['overview','Overview']]],
+  ['Sales', [['convos','Conversations'],['bookings','Sales calls'],['results','Call results']]],
+  ['Communication', [['voice','AI caller & dialer'],['closer','AI texter (closer)'],['pricing','Pricing & offers'],['test','Test chat']]],
+  ['Clients', [['clients','Clients'],['reviews','Testimonials']]]];
+const TABS = NAVG.flatMap(g => g[1]);
 let AUTH = null, STATE = null, TAB = 'overview', DRAFT = null, SEL = null, DIRTY = false;
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -135,7 +142,7 @@ async function load(op='state', extra={}){
 }
 
 function nav(){
-  const h = TABS.map(([k,l]) => `<button class="tab ${TAB===k?'on':''}" data-t="${k}"><i></i>${l}</button>`).join('');
+  const h = NAVG.map(([g, items]) => (g ? `<div class="grp">${g}</div>` : '') + items.map(([k,l]) => `<button class="tab ${TAB===k?'on':''}" data-t="${k}"><i></i>${l}</button>`).join('')).join('');
   $('#nav').innerHTML = h; $('#mnav').innerHTML = h;
   document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { TAB = b.dataset.t; render(); });
 }
@@ -208,7 +215,7 @@ function convos(){
 
 function closer(){
   const s = DRAFT;
-  return `<h1>AI Closer</h1><p class="sub">How the AI sounds and the rules it follows. Changes apply to the very next text.</p>
+  return `<h1>AI texter (closer)</h1><p class="sub">How the AI sounds and the rules it follows. Changes apply to the very next text.</p>
   <div class="grid g2">
     <div class="card"><h2>Personality</h2>
       <div class="field"><label>Assistant name</label><input type="text" data-k="assistantName" value="${esc(s.assistantName)}"></div>
@@ -260,7 +267,7 @@ function voice(){
   const t = dialToday(), [stTxt, stCls] = dialStatus();
   const ready = d.connectionId && (s.ourNumbers||[]).length;
   const hr = h => ((h % 12) || 12) + (h < 12 ? 'am' : 'pm');
-  return `<h1>Phone & Dialer</h1><p class="sub">Voicemail drops to callable leads. When they text back, the AI closer takes over.</p>
+  return `<h1>AI caller & dialer</h1><p class="sub">Voicemail drops to callable leads. When they text back, the AI closer takes over.</p>
   <div class="grid g4 kpis">
     <div class="card kpi"><span>Calls today</span><b>${t.dialed}</b></div>
     <div class="card kpi"><span>Voicemails left</span><b>${t.voicemail}</b></div>
@@ -345,7 +352,7 @@ function reviews(){
         <button class="btn btn-line btn-sm" data-rv="${r.id}" data-st="rejected">Hide</button>
         ${r.status !== 'pending' ? `<button class="btn btn-line btn-sm" data-rv="${r.id}" data-st="pending">Undo</button>` : ''}
       </div></div>`;
-  return `<h1>Reviews</h1><p class="sub">Honest opinions leads text in. Only reviews with their permission can be approved for the website.</p>
+  return `<h1>Testimonials</h1><p class="sub">Honest opinions leads text in. Only reviews with their permission can be approved for the website.</p>
   <div class="card"><h2>${ready} / 10 ready for the website</h2>
     <div class="frow" style="grid-template-columns:1fr 60px"><div class="bar"><div style="width:${Math.min(100, ready*10)}%"></div></div><b>${ready}</b></div>
     <p class="note">At 10 approved reviews they go live on onewebonline.com with the line: "Some clients received a discount for sharing feedback."</p></div>
@@ -371,7 +378,7 @@ function bookings(){
         <button class="btn btn-line btn-sm" data-bk="${esc(b.id)}" data-bs="canceled">Cancel</button>
         <input type="datetime-local" data-bkt="${esc(b.id)}" style="width:auto;padding:6px 10px"><button class="btn btn-line btn-sm" data-bkm="${esc(b.id)}">Move (your time)</button></div>` : ''}
     </div>`;
-  return `<h1>Bookings</h1><p class="sub">Only businesses that said they want to see their website. Emma calls them back at the booked time automatically, and Bookkeeper pings you on Telegram.</p>
+  return `<h1>Sales calls</h1><p class="sub">Only businesses that said they want to see their website. Emma calls them back at the booked time automatically, and Bookkeeper pings you on Telegram.</p>
   <div class="grid" style="grid-template-columns:repeat(7,1fr);gap:10px;margin-bottom:18px">${strip}</div>
   <h2 style="margin:8px 0 12px">Upcoming (${up.length})</h2>${up.length ? up.map(row).join('') : '<div class="card empty">No bookings yet.</div>'}
   ${past.length ? `<h2 style="margin:18px 0 12px">Recent</h2>${past.map(row).join('')}` : ''}
@@ -402,7 +409,7 @@ function results(){
     ${keys.map(k => { const d = dials[k] || 0, r = rep[k] || {}; const rate = d ? (100 * (r.replied || 0) / d).toFixed(1) + '%' : '—';
       return `<tr style="border-top:1px solid var(--line)"><td style="padding:8px 0">${esc(k)}</td><td>${d}</td><td>${r.replied || 0}</td><td><b>${rate}</b></td><td>${r.preview || 0}</td><td>${r.won || 0}</td>${extra ? `<td>${ramp[k] ?? '—'}</td>` : ''}</tr>`; }).join('')}</table>`; };
   const w = C.week || {};
-  return `<h1>Results</h1><p class="sub">Check once a week. Keep what works, change one thing that doesn't. Reply rate is the number that matters most.</p>
+  return `<h1>Call results</h1><p class="sub">Check once a week. Keep what works, change one thing that doesn't. Reply rate is the number that matters most.</p>
   <div class="grid g4 kpis">
     <div class="card kpi"><span>Emma calls (7d)</span><b>${C.total || 0}</b></div>
     <div class="card kpi"><span>Wanted to see site</span><b>${w.wants_to_see_site || 0}</b></div>
