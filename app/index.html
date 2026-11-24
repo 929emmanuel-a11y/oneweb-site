@@ -622,6 +622,7 @@ function voice(){
       <div class="grid g2"><div class="field"><label>Start calling at (their local time)</label><select data-d="startHour" data-num>${[8,9,10,11,12].map(h => `<option value="${h}" ${d.startHour===h?'selected':''}>${h > 12 ? h-12 : h}${h < 12 ? ' AM' : ' PM'}</option>`).join('')}</select></div>
       <div class="field"><label>Stop calling at</label><select data-d="endHour" data-num>${[16,17,18,19,20].map(h => `<option value="${h}" ${d.endHour===h?'selected':''}>${h-12} PM</option>`).join('')}</select><p class="note">Never later than 8 PM (some states, like Florida, require it).</p></div></div>
       <div class="toggle"><span>Leave voicemails<br><span class="note">Turn off until texting is approved (the voicemail asks people to text back)</span></span><input type="checkbox" data-dvm ${d.voicemailOff?'':'checked'}></div>
+      <div class="field"><label>Who leaves the voicemail</label><select data-d="voicemailMode"><option value="emma" ${d.voicemailMode==='emma'?'selected':''}>Emma, personal (business name, already built, 3-minute call; worded differently each time)</option><option value="file" ${d.voicemailMode!=='emma'?'selected':''}>Recorded file</option></select><p class="note">Second calls get a follow-up version ("it's Emma again"). Have your lawyer OK AI voicemails before turning them on.</p></div>
       ${ready ? '' : '<p class="note">Add your Telnyx numbers and the Call Control App ID, save, then switch it on.</p>'}
       <div class="field"><label>Calls per day</label><input type="number" min="0" max="5000" data-d="dailyTarget" data-num value="${d.dailyTarget}"><p class="note">Start at 50, then ramp up.</p></div>
       <div class="field"><label>Max calls per number per day</label><input type="number" min="10" max="300" data-d="perNumberCap" data-num value="${d.perNumberCap}"></div>
@@ -640,7 +641,7 @@ function voice(){
       <p class="note">Used when the engine is Cartesia. Quick pick: <a href="#" data-voice="6fbca103-0f7f-4e49-97ed-49a53b4f3534">Maxine</a> · <a href="#" data-voice="86faee7e-bf54-4293-bd90-076138544609">Paige</a>.</p></div></div>
       <div class="field"><label>Opening line (she says this, then waits for them)</label><input data-d="agentGreeting" maxlength="400" value="${esc(d.agentGreeting||'')}" placeholder="Hey, is this {name}?">
       <p class="note">Keep it short so they can answer. {name} = business name, {city} = their city. Leave empty for the default.</p></div>
-      <div class="field"><label>Intro after they answer</label><textarea data-d="agentIntro" maxlength="300" rows="2" placeholder="This is {agent} with One Web. Quick one, we actually built a new website for you guys, and I wanted to see if you'd want to take a look.">${esc(d.agentIntro||'')}</textarea>
+      <div class="field"><label>Intro after they answer <span class="note">(put 2+ on separate lines to A/B test them)</span></label><textarea data-d="agentIntro" maxlength="1200" rows="3" placeholder="This is {agent} with One Web. Quick one, we actually built a new website for you guys, and I wanted to see if you'd want to take a look.">${esc(d.agentIntro||'')}</textarea>
       <p class="note">She says something like this in her own words, then stops and lets them talk. {agent} = agent name, {name} = business. Leave empty for the default.</p></div>
       <div class="field"><label>Speaking style</label><textarea data-d="agentStyle" maxlength="800" rows="3" placeholder="Sound like a calm, low-key, relaxed person, a little laid-back, like you're just giving them a heads up. Short sentences, everyday words, one thought at a time, then stop and let them talk. Not bubbly, not excited, not salesy.">${esc(d.agentStyle||'')}</textarea>
       <p class="note">How she should come across. Leave empty for the default (calm, low-key, not salesy).</p></div>
@@ -774,7 +775,21 @@ function voiceTest(){
   const rate = v => v.calls ? v.wants_to_see_site / v.calls : 0; const best = keys.reduce((a, k) => rate(V[k]) > rate(V[a]) ? k : a, keys[0]);
   return `<div class="card"><h2>Voice test</h2><table style="width:100%;border-collapse:collapse;font-size:14px"><tr style="color:var(--mut);text-align:left"><th>Voice</th><th>Calls</th><th>Wants site</th><th>Conversion</th><th>Busy</th><th>Not interested</th></tr>
     ${keys.map(k => { const v = V[k]; return `<tr style="border-top:1px solid var(--line)"><td style="padding:8px 0">${esc(k)}${k === best && v.calls >= 30 ? ' <span class="pill won">leading</span>' : ''}</td><td>${v.calls}</td><td>${v.wants_to_see_site || 0}</td><td><b>${(100 * rate(v)).toFixed(1)}%</b></td><td>${v.busy_call_back || 0}</td><td>${v.not_interested || 0}</td></tr>`; }).join('')}</table>
-    <p class="note" style="margin-top:10px">Don't pick a winner until each voice has about 100 pickups; small numbers swing a lot.</p></div>`;
+    <p class="note" style="margin-top:10px">Don't pick a winner until each voice has about 100 pickups; small numbers swing a lot.</p></div>` + abTable('Intro test', STATE.introStats, 'Intro', 'Put 2 or more intros on separate lines in AI caller settings to test them.') + gradesCard();
+}
+function abTable(title, V, col, empty){
+  V = V || {}; const keys = Object.keys(V).sort();
+  if (!keys.length) return `<div class="card"><h2>${title}</h2><p class="note">${empty}</p></div>`;
+  const intros = String((STATE.settings && STATE.settings.dialer && STATE.settings.dialer.agentIntro) || '').split('\n').map(x => x.trim()).filter(Boolean);
+  const rate = v => v.calls ? v.wants_to_see_site / v.calls : 0;
+  return `<div class="card"><h2>${title}</h2><table style="width:100%;border-collapse:collapse;font-size:14px"><tr style="color:var(--mut);text-align:left"><th>${col}</th><th>Calls</th><th>Wants site</th><th>Conversion</th></tr>
+    ${keys.map(k => { const v = V[k]; const n = Number(String(k).replace(/\D/g, '')) - 1; return `<tr style="border-top:1px solid var(--line)"><td style="padding:8px 0">${esc(k)}${intros[n] ? `<br><span class="note">${esc(intros[n].slice(0, 90))}</span>` : ''}</td><td>${v.calls}</td><td>${v.wants_to_see_site || 0}</td><td><b>${(100 * rate(v)).toFixed(1)}%</b></td></tr>`; }).join('')}</table></div>`;
+}
+function gradesCard(){
+  const G = (STATE.grades || []).slice().reverse();
+  if (!G.length) return '<div class="card"><h2>Call grades</h2><p class="note">Every real conversation gets graded against the playbook (tour, 1-10, price, asking for the sale). A summary comes to Telegram every Monday.</p></div>';
+  const avg = (G.reduce((s, g) => s + (g.score || 0), 0) / G.length).toFixed(1);
+  return `<div class="card"><h2>Call grades <span class="note" style="font-weight:400">avg ${avg}/10 · last ${G.length}</span></h2>${G.slice(0, 15).map(g => `<p style="margin:8px 0;font-size:14px"><b>${g.score}/10</b> ${esc(g.name || g.phone || '')} <span class="note">· ${new Date(g.at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span><br><span class="note">✓ ${esc(g.went_well || '')}</span><br><span class="note">→ ${esc(g.fix || '')}</span></p>`).join('')}</div>`;
 }
 
 /* API cost meter: estimated from what each call used (list prices, pay-as-you-go) */
