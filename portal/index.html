@@ -218,16 +218,39 @@ $('#e2').onsubmit = async e => {
 const NAV = [
   ['', [['home', 'Overview']]],
   ['Website', [['site', 'Business info'], ['look', 'Design'], ['photos', 'Photos & logo'], ['content', 'Pages & towns'], ['domain', 'Domain']]],
-  ['Communication', [['chat', 'AI chat assistant'], ['alerts', 'Bookings & alerts'], ['texting', 'Text us changes'], ['agents', 'AI phone agents']]],
+  ['Communication', [['chat', 'AI chat assistant'], ['alerts', 'Bookings & alerts'], ['texting', 'Text us changes'], ['agents', 'AI receptionist']]],
   ['Customers', [['bookings', 'Leads'], ['reviews', 'Reviews'], ['results', 'Results']]],
   ['Account', [['account', 'Login'], ['billing', 'Billing']]]];
 const KEYS = NAV.flatMap(g => g[1].map(x => x[0]));
 if (!KEYS.includes(TAB)) TAB = 'home';
+/* first login: "Is this still correct?" with their Google info filled in */
+function showConfirm() {
+  if (document.getElementById('cfm')) return;
+  const f = D.fields, hrs = Object.entries(f.hours || {}).map(([d, t]) => `${d}: ${t}`).join('\n'), svc = (f.services || []).map(x => String(x).split(':')[0]).join('\n');
+  document.body.insertAdjacentHTML('beforeend', `<div id="cfm" role="dialog" aria-modal="true" aria-labelledby="cfmh" style="position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.65);display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:24px 16px">
+    <form id="cff" class="card" style="max-width:560px;width:100%;margin:auto"><h2 id="cfmh" style="margin-top:0">Is this still correct?</h2>
+    <p class="note" style="margin-top:-6px">We pulled this from your Google listing. Fix anything that's off, then hit the button. Your site and AI use these details.</p>
+    <label>Business name<input name="name" value="${esc(f.name)}" required></label>
+    <div class="row"><label>Phone<input name="phone" type="tel" value="${esc(fmtPhone(f.phone))}"></label><label>Address<input name="address" value="${esc(f.address)}"></label></div>
+    <label>Hours <span class="note">(one per line, like "Mon-Fri: 8am-6pm")</span><textarea name="hours" rows="4" placeholder="Mon-Fri: 8am-6pm&#10;Sat: 9am-1pm&#10;Sun: Closed">${esc(hrs)}</textarea></label>
+    <label>Services <span class="note">(one per line)</span><textarea name="services" rows="4">${esc(svc)}</textarea></label>
+    <div class="bkact"><button class="btn btn-gold" type="submit" id="cfok">Looks right</button><button class="btn btn-line" type="button" id="cflater">Later</button></div><p class="msg" id="cfmsg"></p></form></div>`);
+  const close = () => { const m = $('#cfm'); if (m) m.remove(); };
+  $('#cflater').onclick = close;
+  $('#cff').onsubmit = async e => { e.preventDefault(); const F = e.target, b = $('#cfok'); b.disabled = true; say($('#cfmsg'), 'Saving…', true);
+    const hours = {}; F.hours.value.split('\n').forEach(l => { const i = l.indexOf(':'); if (i > 0 && l.slice(i + 1).trim()) hours[l.slice(0, i).trim()] = l.slice(i + 1).trim(); });
+    const keep = {}; (f.services || []).forEach(x => { const n = String(x).split(':')[0].trim().toLowerCase(); keep[n] = x; });
+    const services = F.services.value.split('\n').map(x => x.trim()).filter(Boolean).slice(0, 9).map(n => keep[n.toLowerCase()] || n);
+    try { await api({ op: 'save', fields: { name: F.name.value, phone: F.phone.value, address: F.address.value, hours, services } }); D = await api({ op: 'confirm_info' }); close(); render(); }
+    catch (err) { b.disabled = false; if (err.message !== 'auth') say($('#cfmsg'), 'Could not save. Try again.'); } };
+}
+
 async function load() {
   D = await api({ op: 'me' });
   $('#login').classList.add('hide'); $('#app').classList.remove('hide'); $('#out').classList.remove('hide'); $('#menu').classList.remove('hide');
   document.body.classList.add('in');
   render();
+  if (D.confirmed === false && !DEMO) showConfirm();
 }
 const siteCode = () => { const slug = (D.site.match(/^https?:\/\/([a-z0-9-]+)\.onewebonline\.com/) || [])[1] || ''; return slug ? (p => (p[0].slice(0, 10) + '-' + p[p.length - 1]).toUpperCase())(slug.split('-')) : ''; };
 const newLeads = () => (D.bookings || []).filter(b => !b.st).length + (D.leads || []).filter(b => !b.st).length;
@@ -238,7 +261,7 @@ function render() {
   $('#sstat').innerHTML = D.live ? '<span class="pill ok">Live</span>' : '<span class="pill new">Not live yet</span>';
   const nb = newLeads();
   $('#nav').innerHTML = NAV.map(([g, items]) => (g ? `<div class="grp">${g}</div>` : '') + items.map(([k, l]) =>
-    `<button class="nv ${TAB === k ? 'on' : ''}" data-t="${k}" type="button">${l}${k === 'bookings' && nb ? `<span class="cnt">${nb}</span>` : ''}${k === 'agents' ? '<span class="soon">Soon</span>' : ''}</button>`).join('')).join('');
+    `<button class="nv ${TAB === k ? 'on' : ''}" data-t="${k}" type="button">${l}${k === 'bookings' && nb ? `<span class="cnt">${nb}</span>` : ''}</button>`).join('')).join('');
   document.querySelectorAll('.nv').forEach(b => b.onclick = () => go(b.dataset.t));
   const cur = NAV.find(g => g[1].some(x => x[0] === TAB)); const lab = cur[1].find(x => x[0] === TAB)[1];
   $('#crumb').textContent = cur[0] ? cur[0] + ' / ' + lab : '';
@@ -313,6 +336,7 @@ function look() {
   ${saveBtn()}</form>`;
 }
 function chat() {
+  if (D.chatAllowed === false) return `${head('AI chat assistant', 'A chat bubble on your site that answers visitors\' questions 24/7.')}<div class="card"><h2>Part of the AI team plan</h2><p class="note" style="margin-top:-6px">The chat assistant comes with the AI team plan, together with the AI receptionist that answers your calls and new local pages every month.</p><a class="btn btn-gold" href="mailto:hello@onewebonline.com?subject=AI%20team%20plan">Ask about the AI team plan</a></div>`;
   return `${head('AI chat assistant', 'A chat bubble on your site that answers visitors\' questions 24/7, using your real services, hours and towns.')}<form id="cf">
   <div class="card"><label class="toggle"><span>AI chat assistant<small>When a visitor wants a quote or a call back, it asks for their name and number and sends them to you</small></span><input type="checkbox" name="chatOn" ${D.chatOn ? 'checked' : ''}></label></div>
   <div class="card"><h2>What it does</h2><p class="note" style="margin:0">Answers questions about your services, hours and the towns you serve. Never makes up prices or promises. Every conversation where someone leaves their details shows up under <a href="#" data-go="bookings">Leads</a>, and you get an email or text right away. To change what it knows, update your <a href="#" data-go="site">Business info</a>.</p></div>
@@ -332,13 +356,6 @@ function texting() {
     <p style="margin:0 0 6px">Things you can text:</p>
     <ul class="note" style="margin:0;padding-left:18px"><li>"Change our hours to Mon-Fri 7am-5pm, Sat 8am-noon"</li><li>"Add water heater installation to my services"</li><li>"Make the headline: Same-day plumbing in Springfield"</li><li>A photo of your work or your logo</li><li>"Our domain is yourbusiness.com"</li></ul></div>
   <div class="card"><h2>Prefer email?</h2><p class="note" style="margin:0">Email <a href="mailto:hello@onewebonline.com">hello@onewebonline.com</a>${code ? ` with your site code <b>${esc(code)}</b>` : ''}.</p></div>`;
-}
-function agents() {
-  const a = (t, d) => `<div class="card"><div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><h2 style="margin:0 0 6px">${t}</h2><span class="pill new">Coming soon</span></div><p class="note" style="margin:0">${d}</p></div>`;
-  return `${head('AI phone agents', 'AI that answers and makes calls for your business. Not available yet: we\'ll let you know the day it is.')}
-  ${a('Receptionist', 'Answers the calls you miss, gets the customer\'s name, number and what they need, and texts you the details.')}
-  ${a('Booker', 'Books the job straight into your schedule while the customer is still on the phone.')}
-  ${a('Follow-up', 'Calls or texts back people who asked for a quote, so leads don\'t go cold.')}`;
 }
 function account() {
   const f = D.fields;
@@ -440,7 +457,37 @@ function billing() {
     <button class="btn btn-gold" type="button" id="bill" ${D.billing ? '' : 'disabled'}>Manage billing</button>
     ${D.billing ? '' : '<p class="note">Billing details aren\'t linked to this site yet. Email hello@onewebonline.com and we\'ll sort it out.</p>'}
     <p class="msg" id="bmsg" role="status" aria-live="polite"></p>
-    <p class="note" style="margin-top:18px">See our <a href="/refund.html">refund policy</a> and <a href="/agreement.html">client agreement</a>.</p></div>`;
+    <p class="note" style="margin-top:18px">See our <a href="/refund.html">refund policy</a> and <a href="/agreement.html">client agreement</a>.</p></div>
+    ${D.billing ? '<div class="card" id="cxl"><h2>Cancel</h2><p class="note" style="margin-top:-6px">Thinking of leaving? Tell us why first. It takes 20 seconds.</p><button class="btn btn-line btn-sm" type="button" id="cx1">Cancel my plan</button></div>' : ''}`;
+}
+const CX_REASONS = ['Too expensive', 'Not getting enough calls or customers', 'I don\'t need a website right now', 'Switching to another company', 'Something isn\'t working right', 'Business is closing or slowing down'];
+function bindCancel() {
+  const b1 = $('#cx1'); if (!b1) return;
+  b1.onclick = () => {
+    $('#cxl').innerHTML = `<h2>Why are you cancelling?</h2><p class="note" style="margin-top:-6px">Pick any that apply.</p>
+      ${CX_REASONS.map(r => `<label class="toggle" style="cursor:pointer"><span style="font-weight:400">${r}</span><input type="checkbox" name="cxr" value="${esc(r)}"></label>`).join('')}
+      <label style="margin-top:10px">Other <span class="note">(optional)</span><textarea id="cxo" rows="2" maxlength="300"></textarea></label>
+      <div class="bkact"><button class="btn btn-gold" type="button" id="cx2">Continue</button><button class="btn btn-line" type="button" id="cxk">Keep my plan</button></div><p class="msg" id="cxm"></p>`;
+    $('#cxk').onclick = () => render();
+    $('#cx2').onclick = async () => {
+      const reasons = [...document.querySelectorAll('[name=cxr]:checked')].map(x => x.value), other = $('#cxo').value.trim();
+      if (!reasons.length && !other) { say($('#cxm'), 'Pick a reason or write one, so we can do better.'); return; }
+      try { const r = await api({ op: 'cancel_start', reasons, other }); offer(r.offerUntil || 0); } catch (e) {}
+    };
+  };
+  const portal = async () => { try { const r = await api({ op: 'billing' }); if (r.url) location.href = r.url; else say($('#cxm'), DEMO ? 'In your account, this opens your secure Stripe page where you can cancel.' : 'Email hello@onewebonline.com and we\'ll cancel it for you.'); } catch (e) {} };
+  const offer = until => {
+    if (!(until > Date.now())) { $('#cxl').innerHTML = '<h2>Sorry to see you go</h2><p class="note" style="margin-top:-6px">You\'ll go to your secure billing page to finish cancelling.</p><div class="bkact"><button class="btn btn-line" type="button" id="cx3">Continue to cancel</button></div><p class="msg" id="cxm"></p>'; $('#cx3').onclick = portal; return; }
+    $('#cxl').innerHTML = `<h2>Before you go: 20% off</h2><p style="margin:0 0 6px">Stay and get <b>20% off your monthly plan for the next 3 months</b>. Nothing else changes.</p>
+      <p class="note" style="margin:0">This offer is only for you and ends in <b id="cxt"></b>. We can't offer it again.</p>
+      <div class="bkact"><button class="btn btn-gold" type="button" id="cxa">Keep my plan with 20% off</button><button class="btn btn-line" type="button" id="cx3">No thanks, continue to cancel</button></div><p class="msg" id="cxm"></p>`;
+    const tick = () => { const el = $('#cxt'); if (!el) return clearInterval(T); const ms = until - Date.now(); if (ms <= 0) { clearInterval(T); offer(0); return; }
+      const h = Math.floor(ms / 36e5), m = Math.floor(ms % 36e5 / 6e4), sec = Math.floor(ms % 6e4 / 1e3); el.textContent = `${h}h ${String(m).padStart(2, '0')}m ${String(sec).padStart(2, '0')}s`; };
+    const T = setInterval(tick, 1000); tick();
+    $('#cx3').onclick = portal;
+    $('#cxa').onclick = async () => { try { const r = await api({ op: 'cancel_offer' }); clearInterval(T);
+      $('#cxl').innerHTML = r.accepted ? '<h2>You\'re all set</h2><p class="note" style="margin:0">Thanks for staying. Your 20% discount starts with your next bill. If something wasn\'t working right, reply to any text from us and we\'ll fix it.</p>' : '<h2>That offer has ended</h2><p class="note" style="margin:0">Email hello@onewebonline.com if you still want to talk.</p>'; } catch (e) {} };
+  };
 }
 
 /* resize in the browser so uploads are small and fast */
@@ -534,11 +581,173 @@ async function demoApi(b) {
     case 'post_set': { const i = DD.posts.findIndex(p => p.slug === b.post); if (i >= 0) { if (b.action === 'delete') DD.posts.splice(i, 1); else DD.posts[i].st = 'live'; } return { ok: true }; }
     case 'domain': { const d = String(b.domain || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, ''); if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(d)) return { ok: false }; DD.domain = d; return demoMe(); }
     case 'billing': return { url: '' };
+    case 'rx_get': case 'rx_save': case 'rx_undo': case 'rx_usage': case 'rx_num_req': return demoRx(b);
+    case 'confirm_info': DD.confirmed = true; return demoMe();
+    case 'cancel_start': DD.offerUntil = DD.offerUntil || Date.now() + 48 * 36e5; return { ok: true, offerUntil: DD.offerUntil };
+    case 'cancel_offer': return { ok: true, accepted: true };
     default: return demoMe();
   }
 }
 
+/* ---------- AI receptionist (AI team plan) ---------- */
+const TOOLS = 'https://n8n-production-9be3db1c.up.railway.app/webhook/oneweb-rx-tools';
+let RX = null, RXP = '', COACH = null, NUMS = null;
+async function tools(body) {
+  if (DEMO) return demoTools(body);
+  const r = await fetch(TOOLS, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({ token: TOKEN }, body)) });
+  if (!r.ok) throw new Error('server');
+  const j = await r.json(); if (j.error === 'auth') { logout(); throw new Error('auth'); } return j;
+}
+async function rxApi(body) { const r = await api(body); if (r && r.rx) { RX = r.rx; RXP = r.plan || ''; } return r; }
+const fmtDay = d => { try { return new Date(d + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }); } catch (e) { return d; } };
+const FIELD_NAMES = { agent: 'Her name', greet: 'Greeting', faq: 'What she knows (FAQ)', style: 'How she handles calls', urgentWords: 'Urgent for you', jobMins: 'Job length', afterHours: 'After hours' };
+
+function agents() {
+  if (!RX) { rxApi({ op: 'rx_get' }).then(() => { if (TAB === 'agents') render(); }).catch(() => {}); return head('AI receptionist') + '<div class="card"><p class="note">Loading…</p></div>'; }
+  if (RXP && RXP !== 'team') return `${head('AI receptionist', 'Answers your calls 24/7, books jobs into your schedule and texts you the details.')}
+    <div class="card"><h2>Part of the AI team plan</h2><p class="note" style="margin-top:-6px">Your AI receptionist picks up when you can't, answers questions about your business, books jobs at open times and sends urgent calls straight to you. It also adds the AI chat on your site and new local pages every month.</p>
+    <a class="btn btn-gold" href="mailto:hello@onewebonline.com?subject=AI%20team%20plan">Ask about the AI team plan</a></div>`;
+  const R = RX;
+  if (!R.num) return `${head('AI receptionist', 'First, pick the phone number your receptionist answers.')}${R.numReq ? `
+    <div class="card"><h2>Setting up ${esc(fmtPhone(R.numReq.num))}</h2><p class="note" style="margin:0">We're getting this number ready for you. It's usually done within one business day, and we'll text you when it's live. Then forward your calls to it, or put it on your site and Google profile.</p></div>` : ''}
+    <div class="card"><h2>${R.numReq ? 'Want a different number?' : 'Choose your number'}</h2><p class="note" style="margin-top:-6px">Any US area code. Pick the one your customers know.</p>
+      <form id="nsf" style="display:flex;gap:10px;align-items:flex-end"><label style="flex:1;margin:0">Area code<input name="area" inputmode="numeric" maxlength="3" placeholder="212" value="${esc((NUMS && NUMS.area) || '')}"></label><button class="btn btn-gold" type="submit" style="margin:0">Search</button></form>
+      <p class="msg" id="nmsg" role="status" aria-live="polite"></p>
+      <div id="nlist">${NUMS && NUMS.list ? NUMS.list.map(n => `<label class="toggle" style="cursor:pointer"><span>${esc(n.pretty)}<small>${esc(n.city || '')}</small></span><input type="radio" name="pick" value="${esc(n.num)}"></label>`).join('') : ''}</div>
+      ${NUMS && NUMS.list && NUMS.list.length ? '<button class="btn btn-gold" type="button" id="npick" style="margin-top:14px">Use this number</button>' : ''}</div>`;
+  const m = R.minutes || { used: 0, included: 300 }, u = R.usage;
+  const capMin = m.included + (u && u.consent ? Math.floor(u.cap / 0.25) : 0), pct = Math.min(100, Math.round(100 * m.used / Math.max(1, capMin)));
+  const call = c => `<details class="card" style="padding:14px 16px"><summary style="cursor:pointer;display:flex;justify-content:space-between;gap:10px"><span><b>${esc(fmtPhone(c.from) || 'Caller')}</b> <span class="note">· ${new Date(c.at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} · ${Math.max(1, Math.round((c.secs || 0) / 60))} min</span></span><span class="pill ${c.outcome === 'booked' ? 'ok' : 'new'}">${esc(c.outcome || 'call')}</span></summary>
+    ${c.summary ? `<p style="margin:10px 0 6px">${esc(c.summary)}</p>` : ''}<div class="note" style="font-size:14px;line-height:1.55">${(c.transcript || []).map(x => `<div><b>${x.r === 'ai' ? 'Receptionist' : 'Caller'}:</b> ${esc(x.t)}</div>`).join('')}</div></details>`;
+  return `${head('AI receptionist', `Answering ${esc(fmtPhone(R.num))}. Forward your calls here, or put this number on your site and Google profile.`)}
+  <div class="card"><label class="toggle" style="border:0;padding-top:0"><span>Receptionist is ${R.on ? 'on' : 'off'}<small>${R.on ? 'Answering every call to this number' : 'Calls to this number won\'t be answered'}</small></span><input type="checkbox" id="rxon" ${R.on ? 'checked' : ''}></label>
+    <div style="margin-top:8px"><div class="note" style="display:flex;justify-content:space-between"><span>Minutes this month</span><span>${m.used} of ${capMin}</span></div>
+    <div style="height:8px;border-radius:6px;background:var(--line);overflow:hidden;margin-top:6px"><div style="height:100%;width:${pct}%;background:${pct >= 80 ? '#e0a63a' : 'var(--gold)'}"></div></div></div>
+    <p class="note" style="margin:8px 0 0">${m.calls || 0} calls · ${m.included} minutes included${u && u.consent ? ` · extra up to $${u.cap}/month` : ''}</p></div>
+
+  <div class="card"><h2>Coach your receptionist</h2><p class="note" style="margin-top:-6px">Tell her what to change, like you'd tell a new employee. Type it or tap the mic and talk. You'll see exactly what changes before anything is saved.</p>
+    <div style="position:relative"><textarea id="ctext" rows="4" placeholder="e.g. When people ask what we do, tell them about our water heater installs. Mention we give free estimates. Sound a bit more upbeat."></textarea>
+    <button type="button" id="cmic" aria-label="Talk instead of typing" title="Talk instead of typing" style="position:absolute;right:10px;bottom:10px;width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--bg);color:var(--txt);cursor:pointer;font-size:18px;display:none">🎙</button></div>
+    <div class="bkact"><button class="btn btn-gold" type="button" id="csug">Suggest changes</button>${R.canUndo ? '<button class="btn btn-line" type="button" id="cundo">Undo last change</button>' : ''}</div>
+    <p class="msg" id="cmsg" role="status" aria-live="polite"></p>
+    <div id="cprop">${COACH ? coachView() : ''}</div>
+    <p class="note" style="margin:12px 0 0;font-size:13px">She'll always say she's an AI if asked, never makes up prices or promises, and never asks for card numbers. Those stay on no matter what.</p></div>
+
+  <form id="rxf"><div class="card"><h2>Settings</h2>
+    <div class="row"><label>Her name <span class="note">(optional)</span><input name="agent" value="${esc(R.agent)}" placeholder="No name"></label>
+      <label>Job length<select name="jobMins">${[30, 45, 60, 90, 120, 180, 240].map(x => `<option value="${x}" ${Number(R.jobMins) === x ? 'selected' : ''}>${x < 60 ? x + ' min' : (x / 60) + (x === 60 ? ' hour' : ' hours')}</option>`).join('')}</select></label></div>
+    <label>Greeting<input name="greet" value="${esc(R.greet)}" placeholder="Thanks for calling ${esc(String(D.fields.name || 'us').replace(/\.$/, ''))}. How can I help you?"></label>
+    <label>What she should know <span class="note">(prices you quote, payment methods, parking, policies…)</span><textarea name="faq" rows="4">${esc(R.faq)}</textarea></label>
+    <label>How she handles calls<textarea name="style" rows="3">${esc(R.style)}</textarea></label>
+    <label>Also urgent for you<input name="urgentWords" value="${esc(R.urgentWords)}" placeholder="e.g. no hot water, sewage backup"></label>
+    <label>After hours<select name="afterHours"><option value="book" ${R.afterHours !== 'message' ? 'selected' : ''}>Book the next open time</option><option value="message" ${R.afterHours === 'message' ? 'selected' : ''}>Take a message for me</option></select></label>
+    <div class="row"><label>Send urgent calls to <span class="note">(transfer)</span><input name="transfer" type="tel" value="${esc(fmtPhone(R.transfer))}" placeholder="(555) 123-4567"></label>
+      <label>Your cell <span class="note">(alerts + owner calls)</span><input name="ownerPhone" type="tel" value="${esc(fmtPhone(R.ownerPhone))}" placeholder="(555) 123-4567"></label></div>
+    <label>Owner PIN <span class="note">${R.hasPin ? '(set; type a new one to change it)' : '(4–6 digits; needed to change your schedule by phone)'}</span><input name="pin" inputmode="numeric" autocomplete="off" maxlength="6" placeholder="${R.hasPin ? '••••' : 'Pick a PIN'}"></label>
+    <p class="note" style="margin:6px 0 0;font-size:13px">Your business hours and services come from <a href="#" data-go="site">Business info</a>.</p></div>
+    ${saveBtn()}</form>
+
+  <div class="card"><h2>Days off</h2><p class="note" style="margin-top:-6px">She won't book jobs on these days. You can also call your line from your cell, say your PIN, and tell her.</p>
+    <div id="blist">${(R.blocks || []).length ? R.blocks.map((b, i) => `<div class="toggle"><span>${esc(fmtDay(b.from))}${b.to !== b.from ? ' – ' + esc(fmtDay(b.to)) : ''}<small>${esc(b.note || '')}${b.src === 'phone' ? ' · set by phone' : ''}</small></span><button type="button" class="btn btn-line btn-sm" data-rmb="${i}">Remove</button></div>`).join('') : '<p class="note">No days off coming up.</p>'}</div>
+    <form id="bf" class="row" style="margin-top:12px;align-items:end"><label>From<input type="date" name="from" required></label><label>To<input type="date" name="to"></label><label style="grid-column:1/-1">Note <span class="note">(only you see this)</span><input name="note" maxlength="60" placeholder="Vacation"></label><button class="btn btn-gold" type="submit">Add days off</button></form></div>
+
+  <div class="card"><h2>Extra minutes</h2>${u && u.consent ? `<p class="note" style="margin-top:-6px">If you go past your ${m.included} included minutes, extra minutes are $0.25 each, charged to your ${u.card === 'new' ? 'other' : 'plan'} card, never more than <b>$${u.cap}</b> a month. We text you at 80%.</p><button class="btn btn-line btn-sm" type="button" id="uoff">Turn off extra minutes</button>`
+    : `<p class="note" style="margin-top:-6px">Your plan includes ${m.included} minutes a month. If you run out, she'll only take quick messages until next month. Want her to keep answering normally instead?</p>
+    <div id="uflow"><button class="btn btn-gold" type="button" id="uyes">Allow extra minutes</button></div>`}</div>
+
+  <h2 style="margin:28px 0 10px">Recent calls</h2>${(R.calls || []).length ? R.calls.map(call).join('') : '<div class="card"><p class="note">No calls yet.</p></div>'}
+  ${(R.msgs || []).length ? `<h2 style="margin:28px 0 10px">Messages</h2>${R.msgs.map(x => `<div class="card" style="padding:14px 16px"><b>${x.urgent ? '🚨 ' : ''}${esc(x.name || 'Caller')}</b> <span class="note">· ${esc(fmtPhone(x.phone))} · ${new Date(x.at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span><p style="margin:6px 0 0">${esc(x.msg)}</p></div>`).join('')}` : ''}`;
+}
+function coachView() {
+  const c = COACH, keys = Object.keys(c.changes || {});
+  return `<div style="border:1px solid var(--line);border-radius:14px;padding:14px;margin-top:12px"><p style="margin:0 0 10px">${esc(c.reply)}</p>
+    ${keys.map(k => `<div style="margin:10px 0"><div class="note" style="font-size:13px">${FIELD_NAMES[k] || k}</div><div style="white-space:pre-wrap;font-size:14px;background:var(--bg);border-radius:10px;padding:10px">${esc(k === 'jobMins' ? c.changes[k] + ' minutes' : k === 'afterHours' ? (c.changes[k] === 'message' ? 'Take a message' : 'Book the next open time') : c.changes[k])}</div></div>`).join('')}
+    ${(c.refused || []).map(x => `<p class="note" style="margin:8px 0 0">⚠️ ${esc(x)}</p>`).join('')}
+    <div class="bkact">${keys.length ? '<button class="btn btn-gold" type="button" id="capply">Apply</button>' : ''}<button class="btn btn-line" type="button" id="ccancel">${keys.length ? 'Cancel' : 'OK'}</button></div></div>`;
+}
+function bindAgents() {
+  if (!RX || (!$('#nsf') && !$('#csug'))) return;
+  const nsf = $('#nsf');
+  if (nsf) {
+    nsf.onsubmit = async e => { e.preventDefault(); const m = $('#nmsg'), area = e.target.area.value.replace(/\D/g, '');
+      m.className = 'msg'; m.textContent = 'Searching…';
+      try { const r = await tools({ op: 'numbers', area }); if (r.ok === false) { say(m, r.error || 'Could not search. Try again.'); return; } NUMS = { area, list: r.numbers || [] }; render(); if (r.note) say($('#nmsg'), r.note); } catch (err) { if (err.message !== 'auth') say(m, 'Could not search. Try again.'); } };
+    const pk = $('#npick'); if (pk) pk.onclick = async () => { const sel = document.querySelector('[name=pick]:checked'); if (!sel) { say($('#nmsg'), 'Pick a number first.'); return; }
+      pk.disabled = true; try { await rxApi({ op: 'rx_num_req', num: sel.value }); NUMS = null; render(); } catch (e) { pk.disabled = false; } };
+    return;
+  }
+  const on = $('#rxon'); if (on) on.onchange = async () => { try { await rxApi({ op: 'rx_save', fields: { on: on.checked } }); render(); } catch (e) {} };
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition, mic = $('#cmic');
+  if (SR && mic) {
+    mic.style.display = 'block'; let rec = null;
+    mic.onclick = () => {
+      if (rec) { rec.stop(); return; }
+      rec = new SR(); rec.lang = navigator.language || 'en-US'; rec.continuous = true; rec.interimResults = true;
+      const ta = $('#ctext'), base = ta.value ? ta.value.replace(/\s*$/, ' ') : '';
+      rec.onresult = ev => { let t = ''; for (let i = 0; i < ev.results.length; i++) t += ev.results[i][0].transcript; ta.value = base + t; };
+      rec.onend = () => { rec = null; mic.style.background = 'var(--bg)'; mic.textContent = '🎙'; };
+      rec.onerror = () => { say($('#cmsg'), 'Couldn\'t use the mic. Check that this site is allowed to use it, or type instead.'); };
+      mic.style.background = '#c0392b'; mic.textContent = '■'; rec.start();
+    };
+  }
+  $('#csug').onclick = async () => { const t = $('#ctext').value.trim(), m = $('#cmsg'); if (t.length < 3) { say(m, 'Tell her what you want changed first.'); return; }
+    m.className = 'msg'; m.textContent = 'Thinking…'; $('#csug').disabled = true;
+    try { const r = await tools({ op: 'coach', text: t }); if (r.ok === false) { say(m, r.error === 'plan' ? 'This is part of the AI team plan.' : (r.error || 'Could not do that. Try again.')); $('#csug').disabled = false; return; }
+      COACH = Object.assign({ text: t }, r); m.textContent = ''; $('#cprop').innerHTML = coachView(); bindCoach(); $('#csug').disabled = false;
+    } catch (e) { if (e.message !== 'auth') say(m, 'Could not do that. Try again.'); $('#csug').disabled = false; } };
+  const un = $('#cundo'); if (un) un.onclick = async () => { if (!confirm('Undo the last change to your receptionist?')) return; try { await rxApi({ op: 'rx_undo' }); COACH = null; render(); say($('#cmsg'), 'Undone. She\'s back to how she was before the last change.', true); } catch (e) {} };
+  bindCoach();
+  $('#rxf').onsubmit = async e => { e.preventDefault(); const F = e.target, m = $('#smsg');
+    const pin = F.pin.value.trim(); if (pin && !/^\d{4,6}$/.test(pin)) { say(m, 'The PIN needs to be 4 to 6 digits.'); return; }
+    const fields = { agent: F.agent.value, jobMins: Number(F.jobMins.value), greet: F.greet.value, faq: F.faq.value, style: F.style.value, urgentWords: F.urgentWords.value,
+      afterHours: F.afterHours.value, transfer: F.transfer.value, ownerPhone: F.ownerPhone.value }; if (pin) fields.pin = pin;
+    m.className = 'msg'; m.textContent = 'Saving…';
+    try { await rxApi({ op: 'rx_save', fields }); render(); say($('#smsg'), 'Saved. Her next call uses these settings.', true); } catch (err) { if (err.message !== 'auth') say(m, 'Could not save. Try again.'); } };
+  document.querySelectorAll('[data-rmb]').forEach(b => b.onclick = async () => { const bl = RX.blocks.slice(); bl.splice(Number(b.dataset.rmb), 1); try { await rxApi({ op: 'rx_save', fields: { blocks: bl } }); render(); } catch (e) {} });
+  $('#bf').onsubmit = async e => { e.preventDefault(); const F = e.target, from = F.from.value, to = F.to.value || from;
+    if (to < from) { alert('The end date is before the start date.'); return; }
+    try { await rxApi({ op: 'rx_save', fields: { blocks: (RX.blocks || []).concat({ from, to, note: F.note.value }) } }); render(); } catch (err) {} };
+  const uy = $('#uyes'); if (uy) uy.onclick = () => {
+    $('#uflow').innerHTML = `<p style="margin:0 0 10px">Use the same card you pay for your plan with?</p>
+      <label class="toggle" style="cursor:pointer"><span>Yes, use the same card</span><input type="radio" name="ucard" value="same" checked></label>
+      <label class="toggle" style="cursor:pointer"><span>Use a different card<small>We'll open your secure billing page to add it</small></span><input type="radio" name="ucard" value="new"></label>
+      <label style="margin-top:10px">Never charge me more than<select id="ucap">${[10, 25, 50, 100, 200].map(x => `<option value="${x}" ${x === 25 ? 'selected' : ''}>$${x} a month</option>`).join('')}</select></label>
+      <label class="toggle" style="margin-top:10px;cursor:pointer"><span style="font-weight:400;font-size:14px">I allow One Web to charge $0.25 per extra minute, up to my monthly limit. I can turn this off any time.</span><input type="checkbox" id="uok"></label>
+      <div class="bkact"><button class="btn btn-gold" type="button" id="usave">Allow extra minutes</button><button class="btn btn-line" type="button" id="uno">Not now</button></div><p class="msg" id="umsg"></p>`;
+    $('#uno').onclick = () => render();
+    $('#usave').onclick = async () => { if (!$('#uok').checked) { say($('#umsg'), 'Tick the box to agree first.'); return; }
+      const card = document.querySelector('[name=ucard]:checked').value;
+      try { await rxApi({ op: 'rx_usage', usage: { consent: true, card, cap: Number($('#ucap').value) } });
+        if (card === 'new') { const r = await api({ op: 'billing' }); if (r.url) { location.href = r.url; return; } } render(); } catch (e) {} };
+  };
+  const uo = $('#uoff'); if (uo) uo.onclick = async () => { if (!confirm('Turn off extra minutes? Once you use your included minutes, she\'ll only take quick messages until next month.')) return; try { await rxApi({ op: 'rx_usage', usage: { consent: false } }); render(); } catch (e) {} };
+}
+function bindCoach() {
+  const ap = $('#capply'), cc = $('#ccancel');
+  if (cc) cc.onclick = () => { COACH = null; $('#cprop').innerHTML = ''; };
+  if (ap) ap.onclick = async () => { ap.disabled = true;
+    try { await rxApi({ op: 'rx_save', fields: Object.assign({ _via: 'coach' }, COACH.changes) }); COACH = null; render(); $('#ctext').value = ''; say($('#cmsg'), 'Done. Her next call uses this. Call your number to hear it.', true); }
+    catch (e) { ap.disabled = false; } };
+}
+async function demoTools(b) {
+  await new Promise(r => setTimeout(r, 600));
+  if (b.op === 'numbers') { const a = String(b.area || '').slice(0, 3); return /^[2-9]\d\d$/.test(a) ? { ok: true, numbers: [1, 2, 3, 4].map(i => ({ num: `+1${a}555010${i}`, pretty: `(${a}) 555-010${i}`, city: 'Sample city' })) } : { ok: false, error: 'Enter a 3-digit area code, like 212.' }; }
+  return { ok: true, reply: 'Here\'s what I\'d change. (Sample account: nothing is saved.)', changes: { style: (RX.style ? RX.style + '\n' : '') + '- ' + String(b.text || '').slice(0, 200) }, refused: [] };
+}
+function demoRx(b) {
+  const now = Date.now();
+  if (!DD.rx) DD.rx = { num: '+12175550188', on: true, agent: '', greet: '', faq: 'Free estimates. We take cash, cards and Zelle.', style: '', urgentWords: '', jobMins: 60, afterHours: 'book', transfer: '', ownerPhone: '+12175550123', hasPin: true, blocks: [], usage: null, canUndo: false, hist: [],
+    minutes: { used: 86, calls: 41, included: 300 }, msgs: [{ at: now - 7200e3, name: 'Dana', phone: '+12175550145', msg: 'Can you call me about a quote for a new water heater?', urgent: false }],
+    calls: [{ at: now - 3600e3, from: '+12175550177', secs: 132, outcome: 'booked', summary: 'Booked a clogged kitchen sink for tomorrow at 9am.', transcript: [{ r: 'ai', t: 'Thanks for calling. How can I help you?' }, { r: 'caller', t: 'My kitchen sink is clogged.' }, { r: 'ai', t: 'Sorry about that. We can get someone out. We\'ve got today at 4pm, tomorrow at 9am, or tomorrow at 1pm. Which works best?' }, { r: 'caller', t: 'Tomorrow at 9.' }] }] };
+  const R = DD.rx;
+  if (b.op === 'rx_save') { R.hist.push(JSON.stringify(R)); const f = Object.assign({}, b.fields); delete f._via; if (f.pin) { R.hasPin = true; delete f.pin; } Object.assign(R, f); R.canUndo = true; }
+  if (b.op === 'rx_undo' && R.hist.length) { const h = JSON.parse(R.hist.pop()); Object.assign(R, h); R.canUndo = R.hist.length > 0; }
+  if (b.op === 'rx_usage') R.usage = b.usage.consent ? { consent: true, card: b.usage.card, cap: b.usage.cap } : null;
+  return { ok: true, plan: 'team', rx: Object.assign({}, R) };
+}
+
 const BIND = {
+  agents() { bindAgents(); },
   site() {
     $('#addh').onclick = () => { $('#hrs').insertAdjacentHTML('beforeend', hourRow('', '')); bindRm(); };
     const bindRm = () => document.querySelectorAll('[data-rmh]').forEach(b => b.onclick = () => b.parentNode.remove());
@@ -592,7 +801,7 @@ const BIND = {
     const f = $('#df'); if (f) f.onsubmit = async e => { e.preventDefault(); const m = $('#dmsg'); m.className = 'msg'; m.textContent = 'Connecting...';
       try { const x = await api({ op: 'domain', domain: f.domain.value }); if (x.ok === false) { say(m, 'That doesn\'t look like a domain. Try something like yourbusiness.com'); return; } D = x; render(); } catch (err) { if (err.message !== 'auth') say(m, 'Could not connect it. Try again.'); } };
   },
-  billing() {
+  billing() { bindCancel();
     const b = $('#bill'); if (!b) return;
     b.onclick = async () => { const m = $('#bmsg'); b.disabled = true; m.className = 'msg'; m.textContent = 'Opening Stripe...';
       try { const r = await api({ op: 'billing' }); if (r.url) location.href = r.url; else { say(m, DEMO ? 'In your account, this opens your secure Stripe page to update your card, get receipts or cancel.' : 'Billing is not available right now. Email hello@onewebonline.com and we will help.'); b.disabled = false; } }
