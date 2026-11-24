@@ -115,6 +115,8 @@ const CHAT = 'https://n8n-production-9be3db1c.up.railway.app/webhook/oneweb-test
 const DIAL = 'https://n8n-production-9be3db1c.up.railway.app/webhook/oneweb-dialer-stats';
 let DSTATS = null, SITEBK = [], CLIENTS = [];
 const EDIT = 'https://n8n-production-9be3db1c.up.railway.app/webhook/oneweb-preview-edit';
+const BUY = 'https://n8n-production-9be3db1c.up.railway.app/webhook/oneweb-rx-buy';
+let CX = {};
 const EXP = 'https://n8n-production-9be3db1c.up.railway.app/webhook/oneweb-expenses';
 const BANK_FORM = 'https://n8n-production-9be3db1c.up.railway.app/form/oneweb-bank-connect-jkc4br';
 let EXPD = null, SHOWALLTX = false;
@@ -144,7 +146,7 @@ async function load(op='state', extra={}){
   STATE = await call(API, Object.assign({ op }, extra));
   try { DSTATS = await call(DIAL, {}); } catch (e) { if (e.auth) throw e; }
   try { SITEBK = (await call(EDIT, { op: 'site_bookings' })).bookings || []; } catch (e) {}
-  try { CLIENTS = (await call(EDIT, { op: 'clients' })).clients || []; } catch (e) {}
+  try { CX = await call(EDIT, { op: 'clients' }); CLIENTS = CX.clients || []; } catch (e) {}
   try { INS = await call(EDIT, { op: 'insights' }); } catch (e) {}
   try { EXPD = await call(EXP, {}); } catch (e) {}
   if (!DIRTY) DRAFT = JSON.parse(JSON.stringify(STATE.settings));
@@ -828,10 +830,16 @@ function costs(){
 /* paying clients + plan switches */
 function clients(){
   const c = CLIENTS || [];
-  return `<h1>Clients</h1><p class="sub">Everyone who paid. Turn on the AI chat for clients on the Growth plan (it shows on their live site and saves visitor leads to their portal).</p>
+  const rq = CX.rxReqs || [], so = CX.saveOffers || [];
+  return `<h1>Clients</h1><p class="sub">Everyone who paid. The AI chat on their site is part of the AI team plan.</p>
+  ${rq.length ? `<div class="card"><h2 style="margin-top:0">Receptionist numbers to buy</h2><p class="note" style="margin-top:-6px">Clients on the AI team plan picked these. Buying orders the number from Telnyx (about $1/month) and turns on their receptionist.</p>
+    ${rq.map(r => `<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;border-top:1px solid var(--line);padding:10px 0"><div><b>${esc(r.name)}</b><br><span class="note">${esc(r.num)} · ${ago(r.at)}</span></div>
+      <div style="display:flex;gap:8px"><button class="btn btn-gold btn-sm" data-buy="${esc(r.slug)}" data-num="${esc(r.num)}" data-nm="${esc(r.name)}">Buy &amp; turn on</button><button class="btn btn-line btn-sm" data-rqx="${esc(r.slug)}">Dismiss</button></div></div>`).join('')}</div>` : ''}
+  ${so.length ? `<div class="card"><h2 style="margin-top:0">Discounts to apply</h2><p class="note" style="margin-top:-6px">These clients took the 20% off for 3 months offer instead of cancelling. Add the coupon to their subscription in Stripe, then mark it done.</p>
+    ${so.map(o => `<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;border-top:1px solid var(--line);padding:10px 0"><div><b>${esc(o.name)}</b><br><span class="note">${ago(o.at)}${o.billing ? '' : ' · no Stripe customer linked'}</span></div><button class="btn btn-line btn-sm" data-sod="${esc(o.slug)}" data-at="${o.at}">Mark applied</button></div>`).join('')}</div>` : ''}
   ${c.length ? c.map(x => `<div class="card" style="padding:16px"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center">
     <div><b>${esc(x.name)}</b>${x.city ? ' · ' + esc(x.city) : ''}<br><span class="note"><a href="${esc(x.site)}" target="_blank" rel="noopener">${esc(x.site.replace(/^https:\/\//, ''))}</a> · ${x.live ? 'live' : 'not published yet'}${x.email ? ' · ' + esc(x.email) : ''}${x.billing ? ' · billing linked' : ''} · ${x.leads} chat leads · ${x.bookings} bookings</span></div>
-    <label class="toggle" style="margin:0;gap:10px"><span>AI chat (Growth)</span><input type="checkbox" data-cchat="${esc(x.slug)}" ${x.chat ? 'checked' : ''}></label></div></div>`).join('') : '<div class="card empty">No paying clients yet.</div>'}`;
+    <label class="toggle" style="margin:0;gap:10px"><span>AI chat${x.plan ? ' (' + esc(x.plan) + ' plan)' : ''}</span><input type="checkbox" data-cchat="${esc(x.slug)}" ${x.chat ? 'checked' : ''}></label></div></div>`).join('') : '<div class="card empty">No paying clients yet.</div>'}`;
 }
 
 /* Emma's calls: outcome + full transcript of what each side said */
@@ -883,6 +891,14 @@ function bind(){
   document.querySelectorAll('[data-c]').forEach(el => el.onclick = () => { SEL = el.dataset.c; render(); });
   document.querySelectorAll('[data-rv]').forEach(el => el.onclick = () => load('review_set', { id: el.dataset.rv, status: el.dataset.st }));
   document.querySelectorAll('[data-sb]').forEach(el => el.onclick = async () => { if (el.dataset.ss === 'delete' && !confirm('Delete this booking request?')) return; try { SITEBK = (await call(EDIT, { op: 'site_booking_set', slug: el.dataset.sb, at: Number(el.dataset.sat), status: el.dataset.ss })).bookings || []; render(); } catch (e) { alert('Could not update. Try again.'); } });
+  document.querySelectorAll('[data-buy]').forEach(el => el.onclick = async () => {
+    if (!confirm(`Buy ${el.dataset.num} for ${el.dataset.nm}? Telnyx charges about $1/month for the number. Their receptionist turns on right after.`)) return;
+    el.disabled = true; el.textContent = 'Buying...';
+    try { const r = await call(BUY, { slug: el.dataset.buy, num: el.dataset.num }); if (r.ok === false) { alert(r.error || 'Could not buy it.'); el.disabled = false; el.textContent = 'Buy & turn on'; return; }
+      CX = await call(EDIT, { op: 'clients' }); CLIENTS = CX.clients || []; render(); alert('Done. Their receptionist answers ' + el.dataset.num + ' now. Text them so they can forward their calls.'); }
+    catch (e) { alert('Could not buy it. Try again.'); el.disabled = false; el.textContent = 'Buy & turn on'; } });
+  document.querySelectorAll('[data-rqx]').forEach(el => el.onclick = async () => { if (!confirm('Dismiss this number request? The client can pick again.')) return; try { CX = await call(EDIT, { op: 'rx_req_dismiss', slug: el.dataset.rqx }); CLIENTS = CX.clients || []; render(); } catch (e) {} });
+  document.querySelectorAll('[data-sod]').forEach(el => el.onclick = async () => { try { CX = await call(EDIT, { op: 'offer_done', slug: el.dataset.sod, at: el.dataset.at }); CLIENTS = CX.clients || []; render(); } catch (e) {} });
   document.querySelectorAll('[data-cchat]').forEach(el => el.onchange = async () => { try { CLIENTS = (await call(EDIT, { op: 'client_set', slug: el.dataset.cchat, chatOn: el.checked })).clients || CLIENTS; render(); } catch (e) { alert('Could not update. Try again.'); el.checked = !el.checked; } });
   document.querySelectorAll('[data-tr]').forEach(el => el.onclick = async () => {
     const id = el.dataset.tr; if (OPEN_T === id) { OPEN_T = null; render(); return; }
