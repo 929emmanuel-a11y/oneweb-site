@@ -43,6 +43,11 @@ h2{font-family:var(--serif);font-weight:400;font-size:26px;margin:0 0 4px;line-h
 .locked .inner{filter:blur(9px);opacity:.5;pointer-events:none;transition:filter .7s,opacity .7s}
 .locked.open .inner{filter:none;opacity:1;pointer-events:auto}
 .clip.locked{position:relative;min-height:48px}
+.clip.locked .inner{filter:none;opacity:1;pointer-events:none}
+.clip.locked:not(.open) .pbtn{background:#3a3833;color:#8d877d}.clip.locked:not(.open) .sub::before{content:'🔒 '}.clip.locked:not(.open) .bars{filter:blur(3px);opacity:.4}
+.clip.locked .lbl b{filter:blur(0)}
+.onlyyou{margin:4px 0 2px;border-top:2px solid #e0453a;padding-top:8px;text-align:center;color:#e0453a;font-size:12.5px;font-weight:600;line-height:1.4}
+.note.adj{margin-top:12px;font-size:13px}
 .locked .soon{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--mut);font-size:14px;transition:opacity .4s}
 .locked.open .soon{opacity:0;pointer-events:none}
 .clip{display:flex;align-items:center;gap:12px;margin-top:12px}
@@ -72,7 +77,7 @@ h2{font-family:var(--serif);font-weight:400;font-size:26px;margin:0 0 4px;line-h
 @media (max-width:860px){
   main{grid-template-columns:1fr;height:auto}
   .stage{height:calc(100dvh - 53px)}            /* their site fills the screen; scroll past its end and our section is right below */
-  aside{border-left:0;border-top:1px solid rgba(201,168,106,.45);padding-top:22px}
+  aside{border-left:0;padding-top:8px}
   .cap{bottom:84px}
   body.meet .live{display:none}
   .more{display:inline-flex !important}
@@ -95,11 +100,13 @@ h2{font-family:var(--serif);font-weight:400;font-size:26px;margin:0 0 4px;line-h
     <div class="cap hide" id="cap" role="status" aria-live="polite"></div>
   </div>
   <aside>
+    <div class="onlyyou" role="note">🔒 Only you can see this. Your customers won't see anything below this line.</div>
     <div class="card" id="rx"><div>
-      <h2>Your AI receptionist</h2>
-      <p class="note">Real calls. It answers when you can't, books the job, and texts you the details.</p>
-      <div class="clip locked" id="c-answering"><span class="soon">Emma will play this for you</span><div class="inner" style="display:flex;align-items:center;gap:12px;width:100%"><button class="pbtn" data-c="answering" aria-label="Play">▶</button><div><b>Answering a call</b><small>about 25 seconds</small></div><div class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div></div>
-      <div class="clip locked" id="c-booking"><span class="soon">Emma will play this for you</span><div class="inner" style="display:flex;align-items:center;gap:12px;width:100%"><button class="pbtn" data-c="booking" aria-label="Play">▶</button><div><b>Booking the job</b><small>about 30 seconds</small></div><div class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div></div>
+      <h2 id="rxTitle">Your AI receptionist</h2>
+      <p class="note">This is what your receptionist is going to sound like.</p>
+      <div class="clip locked" id="c-answering"><div class="inner" style="display:flex;align-items:center;gap:12px;width:100%"><button class="pbtn" data-c="answering" aria-label="Play">▶</button><div class="lbl"><b>Answering a call</b><small class="sub">Emma will play this for you</small></div><div class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div></div>
+      <div class="clip locked" id="c-booking"><div class="inner" style="display:flex;align-items:center;gap:12px;width:100%"><button class="pbtn" data-c="booking" aria-label="Play">▶</button><div class="lbl"><b>Booking the job</b><small class="sub">Emma will play this for you</small></div><div class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div></div>
+      <p class="note adj">The voice and the script are yours to change: male or female, calmer or more upbeat, and exactly what it says.</p>
       <audio id="au" preload="none"></audio>
     </div></div>
     <div class="card" id="plansCard"><h2>Plans</h2><p class="note" id="pnote">Emma will go over these with you.</p>
@@ -126,9 +133,10 @@ const CAPS = { receptionist: 'Scroll down: your AI receptionist samples are belo
 const open = el => { if (el && !el.classList.contains('open')) el.classList.add('open'); };
 const mobile = () => innerWidth <= 860;
 $('#more').onclick = () => $('#rx').scrollIntoView({ behavior: 'smooth', block: 'start' });   // our section below the site
+const CLIP_LEN = { answering: 'about 25 seconds', booking: 'about 30 seconds' };
 function apply(d) {
   document.body.classList.toggle('meet', !!d.live);
-  (d.clips || []).forEach(c => open($('#c-' + c)));
+  (d.clips || []).forEach(c => { const el = $('#c-' + c); if (el && !el.classList.contains('open')) { open(el); const sb = el.querySelector('.sub'); if (sb) sb.textContent = CLIP_LEN[c] || ''; } });
   (d.reveal || []).forEach(p => { const el = document.querySelector(`.plan[data-p="${p}"]`); if (el && !el.classList.contains('open')) { open(el); $('#pnote').textContent = 'Tap the one you want, or just tell Emma.'; } });
   Object.entries(d.prices || {}).forEach(([k, v]) => { const el = document.querySelector(`[data-price="${k}"]`); if (el) el.textContent = v; });
   document.querySelectorAll('.clip').forEach(c => c.classList.toggle('oncall', !!d.live && c.id === 'c-' + d.clip));
@@ -151,9 +159,10 @@ async function poll() {
   } catch (e) { setTimeout(poll, 5000); }
 }
 // samples they can replay once Emma has shown them
-const au = $('#au'); let cur = '';
+const au = $('#au'); let cur = ''; const VOICE = 'https://oneweb-voice-production.up.railway.app';
 document.querySelectorAll('.pbtn').forEach(b => b.onclick = () => { const c = b.dataset.c;
-  if (cur === c && !au.paused) { au.pause(); return; } cur = c; au.src = '/demo/' + KEY + '-' + c + '.mp3'; au.play().catch(() => {}); });
+  if (cur === c && !au.paused) { au.pause(); return; } cur = c; au.onerror = () => { if (au.src.indexOf(VOICE) === 0) { au.src = '/demo/' + KEY + '-' + c + '.mp3'; au.play().catch(() => {}); } };
+  au.src = VOICE + '/clip/' + encodeURIComponent(slug) + '/' + c; au.play().catch(() => {}); });
 au.onplay = () => { document.querySelectorAll('.clip').forEach(x => x.classList.toggle('playing', x.id === 'c-' + cur)); const b = document.querySelector('#c-' + cur + ' .pbtn'); if (b) b.textContent = '❚❚'; };
 au.onpause = au.onended = () => { document.querySelectorAll('.clip').forEach(x => x.classList.remove('playing')); document.querySelectorAll('.pbtn').forEach(x => x.textContent = '▶'); };
 document.querySelectorAll('[data-pick]').forEach(b => b.onclick = async () => {
@@ -165,7 +174,7 @@ if (!slug) { $('#cap').textContent = 'Open this page from the link we sent you.'
 else { $('#site').src = 'https://' + slug + '.onewebonline.com/';
   fetch(N8N + 'oneweb-preview-data?slug=' + encodeURIComponent(slug)).then(r => r.json()).then(d => {
     LEAD = d && d.found ? d.lead : null; KEY = (KEYS.find(([, re]) => re.test(((LEAD && LEAD.category) || '') + ' ' + ((LEAD && LEAD.name) || ''))) || ['plumbing'])[0];
-    document.title = ((LEAD && LEAD.name) || 'Your website') + ' · One Web'; }).catch(() => {});
+    document.title = ((LEAD && LEAD.name) || 'Your website') + ' · One Web'; if (LEAD && LEAD.name) $('#rxTitle').textContent = LEAD.name + (/s$/i.test(LEAD.name) ? "'" : "'s") + ' AI receptionist'; }).catch(() => {});
   poll(); }
 </script>
 </body>
