@@ -42,6 +42,7 @@ h2{font-family:var(--serif);font-weight:400;font-size:26px;margin:0 0 4px;line-h
 .locked{position:relative}
 .locked .inner{filter:blur(9px);opacity:.5;pointer-events:none;transition:filter .7s,opacity .7s}
 .locked.open .inner{filter:none;opacity:1;pointer-events:auto}
+.clip.locked{position:relative;min-height:48px}
 .locked .soon{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--mut);font-size:14px;transition:opacity .4s}
 .locked.open .soon{opacity:0;pointer-events:none}
 .clip{display:flex;align-items:center;gap:12px;margin-top:12px}
@@ -68,7 +69,21 @@ h2{font-family:var(--serif);font-weight:400;font-size:26px;margin:0 0 4px;line-h
 .pick{width:100%;border:0;border-radius:999px;padding:10px;background:var(--gold);color:#17130b;font-weight:600}
 .pick:disabled{opacity:.6}
 .msg{font-size:14px;margin:8px 0 0;color:var(--ok)}
-@media (max-width:860px){main{grid-template-columns:1fr;height:auto}.stage{height:58vh}aside{border-left:0;border-top:1px solid var(--line)}}
+.sheetbar{display:none}
+@media (max-width:860px){
+  main{grid-template-columns:1fr;height:calc(100dvh - 53px)}
+  .stage{height:100%}
+  aside{position:fixed;left:0;right:0;bottom:0;z-index:20;max-height:78dvh;border-left:0;border-top:1px solid rgba(201,168,106,.5);border-radius:20px 20px 0 0;
+    background:var(--bg);transform:translateY(105%);transition:transform .35s ease;padding-top:18px}
+  body.sheet aside{transform:none;box-shadow:0 -12px 40px rgba(0,0,0,.5)}
+  .sheetbar{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:21;display:none;align-items:center;gap:8px;border:0;border-radius:999px;padding:12px 20px;
+    background:var(--gold);color:#17130b;font-weight:600;font-size:15px;box-shadow:0 8px 28px rgba(0,0,0,.45)}
+  body.has .sheetbar{display:inline-flex}
+  body.sheet .sheetbar{bottom:auto;top:calc(22dvh - 46px);background:var(--bg2);color:var(--txt);border:1px solid var(--line);padding:8px 16px;font-size:14px}
+  .sheetbar.pulse{animation:sb 1.4s ease-in-out 3}
+  .cap{bottom:76px}
+}
+@keyframes sb{50%{transform:translateX(-50%) scale(1.07)}}
 @media (prefers-reduced-motion:reduce){.ring.go,.playing .pbtn::before,.playing .pbtn::after,.bars i,.plan.open{animation:none}}
 </style>
 </head>
@@ -76,7 +91,6 @@ h2{font-family:var(--serif);font-weight:400;font-size:26px;margin:0 0 4px;line-h
 <header>
   <div class="brand">One Web</div>
   <span class="live"><i></i>Live with Emma</span>
-  <div class="ctl"><button class="b" id="prev" aria-label="Previous">‹</button><button class="b" id="pause">Pause</button><button class="b" id="next" aria-label="Next">›</button></div>
 </header>
 <main>
   <div class="stage" id="stage">
@@ -85,15 +99,16 @@ h2{font-family:var(--serif);font-weight:400;font-size:26px;margin:0 0 4px;line-h
     <div class="ring" id="ring"></div>
     <div class="cap hide" id="cap" role="status" aria-live="polite"></div>
   </div>
+  <button class="sheetbar" id="sheetbar" type="button">Your AI receptionist &amp; plans ▴</button>
   <aside>
-    <div class="card locked" id="rx"><div class="soon">Emma will show you this in a minute</div><div class="inner">
+    <div class="card" id="rx"><div>
       <h2>Your AI receptionist</h2>
       <p class="note">Real calls. It answers when you can't, books the job, and texts you the details.</p>
-      <div class="clip" id="c-answering"><button class="pbtn" data-c="answering" aria-label="Play">▶</button><div><b>Answering a call</b><small>about 25 seconds</small></div><div class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
-      <div class="clip" id="c-booking"><button class="pbtn" data-c="booking" aria-label="Play">▶</button><div><b>Booking the job</b><small>about 30 seconds</small></div><div class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+      <div class="clip locked" id="c-answering"><span class="soon">Emma will play this for you</span><div class="inner" style="display:flex;align-items:center;gap:12px;width:100%"><button class="pbtn" data-c="answering" aria-label="Play">▶</button><div><b>Answering a call</b><small>about 25 seconds</small></div><div class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div></div>
+      <div class="clip locked" id="c-booking"><span class="soon">Emma will play this for you</span><div class="inner" style="display:flex;align-items:center;gap:12px;width:100%"><button class="pbtn" data-c="booking" aria-label="Play">▶</button><div><b>Booking the job</b><small>about 30 seconds</small></div><div class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div></div>
       <audio id="au" preload="none"></audio>
     </div></div>
-    <div class="card" id="plansCard"><h2>Plans</h2><p class="note" id="pnote">Emma will walk you through these.</p>
+    <div class="card" id="plansCard"><h2>Plans</h2><p class="note" id="pnote">Emma will go over these with you.</p>
       <div class="plans">
         <div class="plan locked" data-p="own"><div class="soon">•••</div><div class="inner"><h3>Website</h3><div class="price">$<span data-price="own">250</span><s>$289</s></div><ul><li>Your site, yours to keep</li><li>Price if you go ahead today</li></ul><button class="pick" data-pick="own">Choose this</button></div></div>
         <div class="plan locked" data-p="hosted"><div class="soon">•••</div><div class="inner"><h3>Website + hosting <span class="tag">30 days free</span></h3><div class="price">$<span data-price="hosted">229</span><span class="mo">+ $39/mo</span></div><ul><li>We host it and keep it running</li><li>Updates, security, changes by text</li></ul><button class="pick" data-pick="hosted">Choose this</button></div></div>
@@ -110,68 +125,57 @@ const slug = (q.get('s') || '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0
 const $ = s => document.querySelector(s);
 const KEYS = [['renovation', /contract|renovat|remodel|construct|handyman|floor|cabinet|kitchen|bath|carpent|tile|drywall/i], ['cleaning', /clean|maid|janitor|pressure wash/i],
   ['auto', /auto|mechanic|car |tire|collision|body shop|transmission|detail/i], ['medspa', /spa|aesthetic|facial|massage|beauty|nail|salon|hair|barber|lash|brow|skin|wax|dental|chiro/i], ['plumbing', /./]];
-let LEAD = null, KEY = 'plumbing', MEET = false, lastShow = '', lastSeq = 0, hello = 1;
-const SHOW = {
-  top: { h: '', t: n => `The new website we built for ${n}.`, ring: [50, 28] },
-  about: { h: '#about', t: () => LEAD && LEAD.rating ? `Your ${LEAD.rating}-star Google rating, right where people look first.` : 'Your story, so people trust you before they call.', ring: [50, 35] },
-  services: { h: '#services', t: () => 'Every service you offer, written so people find you on Google.', ring: [50, 40] },
-  reviews: { h: null, t: () => 'Your best Google reviews, front and center.', ring: null },
-  book: { h: '#book', t: () => 'Customers can request a job right here, even at 2am.', ring: [50, 45] },
-  contact: { h: '#contact', t: () => 'One tap to call you, on every phone.', ring: [50, 40] },
-  receptionist: { panel: '#rx', t: () => 'Listen: this is the AI receptionist on a real call.' },
-  plans: { panel: '#plansCard', t: () => 'Here are the plans.' } };
-const base = () => 'https://' + slug + '.onewebonline.com/';
-function show(k) {
-  const s = SHOW[k]; if (!s) return; lastShow = k;
-  const cap = $('#cap'), f = $('#site');
-  if (s.panel) { const el = $(s.panel); unlock(el); document.querySelectorAll('.card').forEach(c => c.classList.toggle('focus', c === el)); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
-  cap.classList.add('hide');
-  if (s.h !== null && s.h !== undefined && slug) { $('#veil').classList.add('on');
-    setTimeout(() => { try { if (!f.src) f.src = base() + s.h; else f.contentWindow.location.replace(base() + (s.h || '#top')); } catch (e) { f.src = base() + s.h; } }, 250); }
-  setTimeout(() => { $('#veil').classList.remove('on'); cap.textContent = s.t((LEAD && LEAD.name) || 'your business'); cap.classList.remove('hide');
-    const r = $('#ring'); r.classList.remove('go'); if (s.ring) { r.style.left = s.ring[0] + '%'; r.style.top = s.ring[1] + '%'; void r.offsetWidth; r.classList.add('go'); } }, 650);
+let LEAD = null, KEY = 'plumbing', lastSeq = -1, hello = 1, lastShow = '';
+// Nothing on this page reveals itself: only Emma (on the call) reveals the samples and the plans, and they stay revealed for this business.
+// We never scroll their website for them (that would fake our scroll stats): Emma tells them where to look.
+const CAPS = { receptionist: 'Scroll down: your AI receptionist samples are below.', plans: 'Scroll down to see the plans.' };
+const open = el => { if (el && !el.classList.contains('open')) el.classList.add('open'); };
+const mobile = () => innerWidth <= 860;
+function sheet(open) { document.body.classList.toggle('sheet', open); $('#sheetbar').textContent = open ? 'Close ▾' : 'Your AI receptionist & plans ▴'; }
+$('#sheetbar').onclick = () => sheet(!document.body.classList.contains('sheet'));
+function apply(d) {
+  document.body.classList.toggle('meet', !!d.live);
+  const any = (d.clips || []).length || (d.reveal || []).length;
+  if (any && !document.body.classList.contains('has')) { document.body.classList.add('has'); $('#sheetbar').classList.add('pulse'); }
+  (d.clips || []).forEach(c => open($('#c-' + c)));
+  (d.reveal || []).forEach(p => { const el = document.querySelector(`.plan[data-p="${p}"]`); if (el && !el.classList.contains('open')) { open(el); $('#pnote').textContent = 'Tap the one you want, or just tell Emma.'; } });
+  Object.entries(d.prices || {}).forEach(([k, v]) => { const el = document.querySelector(`[data-price="${k}"]`); if (el) el.textContent = v; });
+  document.querySelectorAll('.clip').forEach(c => c.classList.toggle('oncall', !!d.live && c.id === 'c-' + d.clip));
+  if (d.picked) $('#pmsg').textContent = 'Payment link sent to your phone.';
+  const show = d.live ? (d.show || '') : '';
+  if (show !== lastShow) { lastShow = show;
+    const card = show === 'receptionist' ? $('#rx') : show === 'plans' ? $('#plansCard') : null;
+    document.querySelectorAll('.card').forEach(c => c.classList.toggle('focus', c === card));
+    const cap = $('#cap');
+    if (card) { cap.textContent = mobile() ? (show === 'plans' ? 'Tap the gold button below to see the plans.' : 'Tap the gold button below to hear it.') : CAPS[show]; cap.classList.remove('hide');
+      if (mobile()) { sheet(true); setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'start' }), 400); }   // opens our panel, never scrolls their site
+      else card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } else cap.classList.add('hide'); }
 }
-const unlock = el => { if (el && !el.classList.contains('open')) { el.classList.add('open'); if (el.classList.contains('plan')) el.classList.add('open'); } };
-function reveal(list) { (list || []).forEach(p => { const el = document.querySelector(`.plan[data-p="${p}"]`); if (el && !el.classList.contains('open')) { unlock(el); $('#pnote').textContent = 'Tap the one you want, or just tell Emma.'; } }); }
-function prices(pr) { Object.entries(pr || {}).forEach(([k, v]) => { const el = document.querySelector(`[data-price="${k}"]`); if (el) el.textContent = v; }); }
-// --- live: follow Emma ---
 async function poll() {
   if (!slug) return;
-  try {
-    const d = await fetch(N8N + 'oneweb-present-state?s=' + encodeURIComponent(slug) + (hello ? '&hello=1' : '')).then(r => r.json()); hello = 0;
-    if (d.live) {
-      if (!MEET) { MEET = true; document.body.classList.add('meet'); stopAuto(); if (!$('#site').src) $('#site').src = base(); }
-      if (d.seq !== lastSeq) { lastSeq = d.seq; if (d.show && d.show !== lastShow) show(d.show); reveal(d.reveal); prices(d.prices);
-        document.querySelectorAll('.clip').forEach(c => c.classList.toggle('oncall', c.id === 'c-' + d.clip));
-        if (d.picked) $('#pmsg').textContent = 'Payment link sent to your phone. Emma will help you through it.'; }
-    }
-  } catch (e) {}
-  setTimeout(poll, MEET ? 1500 : 4000);
+  try { const d = await fetch(N8N + 'oneweb-present-state?s=' + encodeURIComponent(slug) + (hello ? '&hello=1' : '')).then(r => r.json()); hello = 0;
+    if (d.seq !== lastSeq || d.live) { lastSeq = d.seq; apply(d); }
+    setTimeout(poll, d.live ? 1500 : 5000);
+  } catch (e) { setTimeout(poll, 5000); }
 }
-// --- on your own: a simple tour ---
-const AUTO = ['top', 'about', 'services', 'book', 'contact', 'receptionist', 'plans']; let ai = 0, timer = null, paused = false;
-function auto(k) { ai = (k + AUTO.length) % AUTO.length; show(AUTO[ai]); if (AUTO[ai] === 'plans') reveal(['own', 'hosted', 'team']); clearTimeout(timer); if (!paused && ai < AUTO.length - 1) timer = setTimeout(() => auto(ai + 1), 7000); }
-function stopAuto() { clearTimeout(timer); paused = true; }
-$('#next').onclick = () => auto(ai + 1); $('#prev').onclick = () => auto(ai - 1);
-$('#pause').onclick = () => { paused = !paused; $('#pause').textContent = paused ? 'Play' : 'Pause'; if (!paused) auto(ai + 1); else clearTimeout(timer); };
-// --- clips you can play yourself ---
+// samples they can replay once Emma has shown them
 const au = $('#au'); let cur = '';
 document.querySelectorAll('.pbtn').forEach(b => b.onclick = () => { const c = b.dataset.c;
   if (cur === c && !au.paused) { au.pause(); return; } cur = c; au.src = '/demo/' + KEY + '-' + c + '.mp3'; au.play().catch(() => {}); });
-au.onplay = () => { document.querySelectorAll('.clip').forEach(x => x.classList.toggle('playing', x.id === 'c-' + cur)); document.querySelector('#c-' + cur + ' .pbtn').textContent = '❚❚'; };
+au.onplay = () => { document.querySelectorAll('.clip').forEach(x => x.classList.toggle('playing', x.id === 'c-' + cur)); const b = document.querySelector('#c-' + cur + ' .pbtn'); if (b) b.textContent = '❚❚'; };
 au.onpause = au.onended = () => { document.querySelectorAll('.clip').forEach(x => x.classList.remove('playing')); document.querySelectorAll('.pbtn').forEach(x => x.textContent = '▶'); };
-// --- pick a plan ---
 document.querySelectorAll('[data-pick]').forEach(b => b.onclick = async () => {
   const m = $('#pmsg'); b.disabled = true; m.style.color = ''; m.textContent = 'Sending your secure payment link…';
   try { const r = await fetch(N8N + 'oneweb-present-pick', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ s: slug, plan: b.dataset.pick }) }).then(r => r.json());
     if (r.ok) m.textContent = 'Done. Your secure payment link is in your texts.'; else { m.style.color = '#e08a7a'; m.textContent = r.error === 'not yet' ? 'One sec, Emma is still going over this one.' : (r.error || 'Reply to our text and we\'ll send your payment link.'); b.disabled = false; } }
   catch (e) { m.style.color = '#e08a7a'; m.textContent = 'Reply to our text and we\'ll send your payment link.'; b.disabled = false; } });
-// --- start ---
-if (!slug) { $('#cap').textContent = 'Open this page from the link we texted you.'; $('#cap').classList.remove('hide'); }
-else fetch(N8N + 'oneweb-preview-data?slug=' + encodeURIComponent(slug)).then(r => r.json()).then(d => {
-  LEAD = d && d.found ? d.lead : null; KEY = (KEYS.find(([, re]) => re.test(((LEAD && LEAD.category) || '') + ' ' + ((LEAD && LEAD.name) || ''))) || ['plumbing'])[0];
-  document.title = ((LEAD && LEAD.name) || 'Your website') + ' · One Web';
-}).catch(() => {}).finally(() => { $('#site').src = base(); setTimeout(() => { if (!MEET) auto(0); }, 2500); poll(); });
+if (!slug) { $('#cap').textContent = 'Open this page from the link we sent you.'; $('#cap').classList.remove('hide'); }
+else { $('#site').src = 'https://' + slug + '.onewebonline.com/';
+  fetch(N8N + 'oneweb-preview-data?slug=' + encodeURIComponent(slug)).then(r => r.json()).then(d => {
+    LEAD = d && d.found ? d.lead : null; KEY = (KEYS.find(([, re]) => re.test(((LEAD && LEAD.category) || '') + ' ' + ((LEAD && LEAD.name) || ''))) || ['plumbing'])[0];
+    document.title = ((LEAD && LEAD.name) || 'Your website') + ' · One Web'; }).catch(() => {});
+  poll(); }
 </script>
 </body>
 </html>
