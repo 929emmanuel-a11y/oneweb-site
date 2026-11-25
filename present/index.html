@@ -4,139 +4,174 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>Your Website Tour · One Web</title>
+<title>Your Website · One Web</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#0a0a0a;--bg2:#131312;--line:rgba(237,232,224,.12);--txt:#ede8e0;--mut:#9b958c;--gold:#c9a86a;--gold2:#e6cf9e;
+:root{--bg:#0a0a0a;--bg2:#131312;--line:rgba(237,232,224,.12);--txt:#ede8e0;--mut:#9b958c;--gold:#c9a86a;--gold2:#e6cf9e;--ok:#7fbf8e;
 --serif:"Instrument Serif",Georgia,serif;--sans:"Inter",system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
 *{box-sizing:border-box}
 html,body{height:100%}
-body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.5 var(--sans);-webkit-font-smoothing:antialiased;display:flex;flex-direction:column;overflow:hidden}
-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;border-bottom:1px solid var(--line)}
-.brand{font-family:var(--serif);font-size:22px}
-.brand small{font-family:var(--sans);font-size:12px;color:var(--mut);margin-left:8px}
+body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
+header{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line);background:rgba(10,10,10,.92);backdrop-filter:blur(10px)}
+.brand{font-family:var(--serif);font-size:22px;white-space:nowrap}
+.live{display:none;align-items:center;gap:7px;font-size:13px;color:var(--gold2);border:1px solid rgba(201,168,106,.45);border-radius:999px;padding:4px 10px}
+.live i{width:8px;height:8px;border-radius:50%;background:#e25b4b;animation:blink 1.2s infinite}
+body.meet .live{display:inline-flex}
+@keyframes blink{50%{opacity:.25}}
 .ctl{display:flex;gap:8px}
+body.meet .ctl{display:none}
 button{font:inherit;cursor:pointer}
 .b{border:1px solid var(--line);background:var(--bg2);color:var(--txt);border-radius:999px;padding:7px 14px;font-size:14px}
-.b.gold{background:var(--gold);color:#17130b;border-color:var(--gold);font-weight:600}
-main{flex:1;display:grid;grid-template-columns:1fr 340px;min-height:0}
-.stage{position:relative;min-height:0;background:#fff}
+main{display:grid;grid-template-columns:1fr 380px;height:calc(100vh - 53px)}
+.stage{position:relative;background:#fff;min-height:0}
 iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#fff}
 .veil{position:absolute;inset:0;background:var(--bg);opacity:0;pointer-events:none;transition:opacity .35s}
 .veil.on{opacity:.85}
-.cap{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);max-width:min(640px,92%);background:rgba(10,10,10,.88);color:var(--txt);border:1px solid rgba(201,168,106,.5);
-  border-radius:16px;padding:12px 18px;font-size:17px;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.35);transition:opacity .3s,transform .3s}
+.cap{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);max-width:min(620px,92%);background:rgba(10,10,10,.9);color:var(--txt);border:1px solid rgba(201,168,106,.5);
+  border-radius:16px;padding:11px 18px;font-size:16px;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.35);transition:opacity .3s,transform .3s}
 .cap.hide{opacity:0;transform:translate(-50%,10px)}
 .ring{position:absolute;width:120px;height:120px;border-radius:50%;border:3px solid var(--gold);pointer-events:none;opacity:0;transform:translate(-50%,-50%) scale(.6)}
 .ring.go{animation:ring 2.2s ease-out 2}
 @keyframes ring{0%{opacity:0;transform:translate(-50%,-50%) scale(.5)}20%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) scale(1.6)}}
-.dots{display:flex;gap:6px;justify-content:center;padding:10px 0 0}
-.dot{width:8px;height:8px;border-radius:50%;background:var(--line);border:0;padding:0}
-.dot.on{background:var(--gold)}
-aside{border-left:1px solid var(--line);padding:18px;overflow:auto;display:flex;flex-direction:column;gap:14px}
-.card{background:var(--bg2);border:1px solid var(--line);border-radius:18px;padding:16px}
-h2{font-family:var(--serif);font-weight:400;font-size:26px;margin:0 0 6px;line-height:1.1}
-.note{color:var(--mut);font-size:14px}
-.play{display:flex;align-items:center;gap:14px;margin-top:12px}
-.pbtn{position:relative;width:58px;height:58px;border-radius:50%;border:0;background:var(--gold);color:#17130b;font-size:20px;flex:none}
+aside{border-left:1px solid var(--line);padding:16px;overflow:auto;display:flex;flex-direction:column;gap:14px}
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:18px;padding:16px;transition:border-color .4s,box-shadow .4s}
+.card.focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,168,106,.18)}
+h2{font-family:var(--serif);font-weight:400;font-size:26px;margin:0 0 4px;line-height:1.1}
+.note{color:var(--mut);font-size:14px;margin:0}
+.locked{position:relative}
+.locked .inner{filter:blur(9px);opacity:.5;pointer-events:none;transition:filter .7s,opacity .7s}
+.locked.open .inner{filter:none;opacity:1;pointer-events:auto}
+.locked .soon{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--mut);font-size:14px;transition:opacity .4s}
+.locked.open .soon{opacity:0;pointer-events:none}
+.clip{display:flex;align-items:center;gap:12px;margin-top:12px}
+.pbtn{position:relative;width:48px;height:48px;border-radius:50%;border:0;background:var(--gold);color:#17130b;font-size:16px;flex:none}
 .pbtn::before,.pbtn::after{content:"";position:absolute;inset:0;border-radius:50%;border:2px solid var(--gold);opacity:0}
-.playing .pbtn::before{animation:pulse 1.8s ease-out infinite}
-.playing .pbtn::after{animation:pulse 1.8s ease-out .9s infinite}
+.playing .pbtn::before{animation:pulse 1.8s ease-out infinite}.playing .pbtn::after{animation:pulse 1.8s ease-out .9s infinite}
 @keyframes pulse{0%{opacity:.8;transform:scale(1)}100%{opacity:0;transform:scale(1.8)}}
-.bars{display:flex;gap:3px;align-items:center;height:30px}
-.bars i{display:block;width:4px;height:6px;border-radius:2px;background:var(--gold2);opacity:.5}
-.playing .bars i{animation:bar 1s ease-in-out infinite}
-.bars i:nth-child(2n){animation-delay:.15s}.bars i:nth-child(3n){animation-delay:.3s}.bars i:nth-child(5n){animation-delay:.45s}
-@keyframes bar{0%,100%{height:6px;opacity:.5}50%{height:28px;opacity:1}}
-.prog{height:4px;background:var(--line);border-radius:4px;overflow:hidden;margin-top:12px}
-.prog div{height:100%;width:0;background:var(--gold)}
-ul{margin:8px 0 0;padding-left:18px;color:var(--mut);font-size:14px}
-@media (max-width:860px){main{grid-template-columns:1fr;grid-template-rows:1fr auto}aside{border-left:0;border-top:1px solid var(--line);max-height:42vh}.brand small{display:none}}
-@media (prefers-reduced-motion:reduce){.ring.go,.playing .pbtn::before,.playing .pbtn::after,.playing .bars i{animation:none}}
+.clip b{display:block;font-weight:600;font-size:15px}.clip small{color:var(--mut);font-size:13px}
+.bars{display:flex;gap:3px;align-items:center;height:22px;margin-left:auto}
+.bars i{display:block;width:3px;height:5px;border-radius:2px;background:var(--gold2);opacity:.45}
+.playing .bars i,.oncall .bars i{animation:bar 1s ease-in-out infinite}
+.bars i:nth-child(2n){animation-delay:.15s}.bars i:nth-child(3n){animation-delay:.3s}
+@keyframes bar{0%,100%{height:5px;opacity:.45}50%{height:20px;opacity:1}}
+.plans{display:grid;gap:10px;margin-top:10px}
+.plan{border:1px solid var(--line);border-radius:14px;padding:14px;background:var(--bg)}
+.plan.open{animation:pop .5s ease-out}
+@keyframes pop{0%{transform:scale(.97)}60%{transform:scale(1.02)}100%{transform:none}}
+.plan h3{margin:0;font-size:15px;font-weight:600}
+.price{font-family:var(--serif);font-size:34px;line-height:1.1;margin:6px 0 2px}
+.price .mo{font-family:var(--sans);font-size:15px;color:var(--mut);margin-left:6px}
+.price s{font-family:var(--sans);font-size:15px;color:var(--mut);margin-left:6px}
+.plan ul{margin:6px 0 10px;padding-left:18px;color:var(--mut);font-size:14px}
+.tag{display:inline-block;font-size:12px;color:#17130b;background:var(--gold2);border-radius:999px;padding:2px 8px;margin-left:6px;vertical-align:2px}
+.pick{width:100%;border:0;border-radius:999px;padding:10px;background:var(--gold);color:#17130b;font-weight:600}
+.pick:disabled{opacity:.6}
+.msg{font-size:14px;margin:8px 0 0;color:var(--ok)}
+@media (max-width:860px){main{grid-template-columns:1fr;height:auto}.stage{height:58vh}aside{border-left:0;border-top:1px solid var(--line)}}
+@media (prefers-reduced-motion:reduce){.ring.go,.playing .pbtn::before,.playing .pbtn::after,.bars i,.plan.open{animation:none}}
 </style>
 </head>
 <body>
 <header>
-  <div class="brand">One Web<small id="for"></small></div>
+  <div class="brand">One Web</div>
+  <span class="live"><i></i>Live with Emma</span>
   <div class="ctl"><button class="b" id="prev" aria-label="Previous">‹</button><button class="b" id="pause">Pause</button><button class="b" id="next" aria-label="Next">›</button></div>
 </header>
 <main>
   <div class="stage" id="stage">
-    <iframe id="site" title="Your website preview"></iframe>
+    <iframe id="site" title="Your website"></iframe>
     <div class="veil" id="veil"></div>
     <div class="ring" id="ring"></div>
     <div class="cap hide" id="cap" role="status" aria-live="polite"></div>
   </div>
   <aside>
-    <div class="card" id="rx">
-      <h2>Hear your AI receptionist</h2>
-      <p class="note" id="rxsub">A real call with an AI receptionist. It answers when you can't, books the job, and texts you the details.</p>
-      <div class="play" id="pl"><button class="pbtn" id="pb" aria-label="Play the sample call">▶</button><div class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
-      <div class="prog"><div id="pg"></div></div>
+    <div class="card locked" id="rx"><div class="soon">Emma will show you this in a minute</div><div class="inner">
+      <h2>Your AI receptionist</h2>
+      <p class="note">Real calls. It answers when you can't, books the job, and texts you the details.</p>
+      <div class="clip" id="c-answering"><button class="pbtn" data-c="answering" aria-label="Play">▶</button><div><b>Answering a call</b><small>about 25 seconds</small></div><div class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+      <div class="clip" id="c-booking"><button class="pbtn" data-c="booking" aria-label="Play">▶</button><div><b>Booking the job</b><small>about 30 seconds</small></div><div class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
       <audio id="au" preload="none"></audio>
+    </div></div>
+    <div class="card" id="plansCard"><h2>Plans</h2><p class="note" id="pnote">Emma will walk you through these.</p>
+      <div class="plans">
+        <div class="plan locked" data-p="own"><div class="soon">•••</div><div class="inner"><h3>Website</h3><div class="price">$<span data-price="own">250</span><s>$289</s></div><ul><li>Your site, yours to keep</li><li>Price if you go ahead today</li></ul><button class="pick" data-pick="own">Choose this</button></div></div>
+        <div class="plan locked" data-p="hosted"><div class="soon">•••</div><div class="inner"><h3>Website + hosting <span class="tag">30 days free</span></h3><div class="price">$<span data-price="hosted">229</span><span class="mo">+ $39/mo</span></div><ul><li>We host it and keep it running</li><li>Updates, security, changes by text</li></ul><button class="pick" data-pick="hosted">Choose this</button></div></div>
+        <div class="plan locked" data-p="team"><div class="soon">•••</div><div class="inner"><h3>Website + hosting + AI team <span class="tag">30 days free</span></h3><div class="price">$<span data-price="team">199</span><span class="mo">+ $97/mo</span></div><ul><li>AI receptionist answers and books 24/7</li><li>Review requests and new Google pages monthly</li><li>Chat on your site</li></ul><button class="pick" data-pick="team">Choose this</button></div></div>
+      </div>
+      <p class="msg" id="pmsg" role="status" aria-live="polite"></p>
     </div>
-    <div class="card"><h2>What you get</h2>
-      <ul id="perks"><li>This website, live on your own domain</li><li>Hosting, updates and changes by text</li><li>Online booking and click-to-call</li><li>Optional AI team: receptionist, site chat, monthly local pages</li></ul></div>
-    <div class="dots" id="dots"></div>
   </aside>
 </main>
 <script>
+const N8N = 'https://n8n-production-9be3db1c.up.railway.app/webhook/';
 const q = new URLSearchParams(location.search);
 const slug = (q.get('s') || '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 80);
 const $ = s => document.querySelector(s);
-const CLIPS = [ // closest demo call for the business's trade
-  ['renovation', /contract|renovat|remodel|construct|handyman|floor|cabinet|kitchen|bath|carpent|tile|drywall/i],
-  ['cleaning', /clean|maid|janitor|pressure wash/i],
-  ['auto', /auto|mechanic|car |tire|collision|body shop|transmission|detail/i],
-  ['medspa', /spa|aesthetic|facial|massage|beauty|nail|salon|hair|barber|lash|brow|skin|wax|dental|chiro/i],
-  ['plumbing', /./]];
-let STEPS = [], i = 0, timer = null, paused = q.has('paused');
-function build(L) {
-  const n = (L && L.name) || 'your business';
-  $('#for').textContent = 'Website tour for ' + n;
-  document.title = n + ' · Website Tour';
-  STEPS = [
-    { h: '', t: `This is the new website we built for ${n}.`, ring: [50, 30] },
-    { h: '#about', t: L && L.rating ? `Your ${L.rating}-star Google rating, right where customers look first.` : 'Your story, so customers trust you before they call.', ring: [50, 35] },
-    { h: '#services', t: 'Every service you offer, written so people find you on Google.', ring: [50, 40] },
-    { h: '#book', t: 'Customers can request a job right here, even at 2am.', ring: [50, 45] },
-    { h: '#contact', t: 'One tap to call you, on every phone.', ring: [50, 40] },
-    { h: '', t: 'Now hear the AI receptionist that answers when you can\'t →', ring: null, rx: true }];
-  const key = (CLIPS.find(([, re]) => re.test(((L && L.category) || '') + ' ' + n)) || ['plumbing'])[0];
-  $('#au').src = '/demo/' + key + '.mp3';
-  $('#dots').innerHTML = STEPS.map((s, k) => `<button class="dot" data-k="${k}" aria-label="Step ${k + 1}"></button>`).join('');
-  document.querySelectorAll('.dot').forEach(d => d.onclick = () => { go(Number(d.dataset.k)); });
-  go(0);
+const KEYS = [['renovation', /contract|renovat|remodel|construct|handyman|floor|cabinet|kitchen|bath|carpent|tile|drywall/i], ['cleaning', /clean|maid|janitor|pressure wash/i],
+  ['auto', /auto|mechanic|car |tire|collision|body shop|transmission|detail/i], ['medspa', /spa|aesthetic|facial|massage|beauty|nail|salon|hair|barber|lash|brow|skin|wax|dental|chiro/i], ['plumbing', /./]];
+let LEAD = null, KEY = 'plumbing', MEET = false, lastShow = '', lastSeq = 0, hello = 1;
+const SHOW = {
+  top: { h: '', t: n => `The new website we built for ${n}.`, ring: [50, 28] },
+  about: { h: '#about', t: () => LEAD && LEAD.rating ? `Your ${LEAD.rating}-star Google rating, right where people look first.` : 'Your story, so people trust you before they call.', ring: [50, 35] },
+  services: { h: '#services', t: () => 'Every service you offer, written so people find you on Google.', ring: [50, 40] },
+  reviews: { h: null, t: () => 'Your best Google reviews, front and center.', ring: null },
+  book: { h: '#book', t: () => 'Customers can request a job right here, even at 2am.', ring: [50, 45] },
+  contact: { h: '#contact', t: () => 'One tap to call you, on every phone.', ring: [50, 40] },
+  receptionist: { panel: '#rx', t: () => 'Listen: this is the AI receptionist on a real call.' },
+  plans: { panel: '#plansCard', t: () => 'Here are the plans.' } };
+const base = () => 'https://' + slug + '.onewebonline.com/';
+function show(k) {
+  const s = SHOW[k]; if (!s) return; lastShow = k;
+  const cap = $('#cap'), f = $('#site');
+  if (s.panel) { const el = $(s.panel); unlock(el); document.querySelectorAll('.card').forEach(c => c.classList.toggle('focus', c === el)); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+  cap.classList.add('hide');
+  if (s.h !== null && s.h !== undefined && slug) { $('#veil').classList.add('on');
+    setTimeout(() => { try { if (!f.src) f.src = base() + s.h; else f.contentWindow.location.replace(base() + (s.h || '#top')); } catch (e) { f.src = base() + s.h; } }, 250); }
+  setTimeout(() => { $('#veil').classList.remove('on'); cap.textContent = s.t((LEAD && LEAD.name) || 'your business'); cap.classList.remove('hide');
+    const r = $('#ring'); r.classList.remove('go'); if (s.ring) { r.style.left = s.ring[0] + '%'; r.style.top = s.ring[1] + '%'; void r.offsetWidth; r.classList.add('go'); } }, 650);
 }
-function go(k) {
-  i = (k + STEPS.length) % STEPS.length; const s = STEPS[i];
-  document.querySelectorAll('.dot').forEach((d, x) => d.classList.toggle('on', x === i));
-  const cap = $('#cap'), veil = $('#veil'), f = $('#site');
-  cap.classList.add('hide'); veil.classList.add('on');
-  setTimeout(() => {
-    if (slug) { const base = 'https://' + slug + '.onewebonline.com/'; if (!f.src || i === 0) f.src = base + (s.h || ''); else f.contentWindow.location.replace(base + (s.h || '#top')); }
-    setTimeout(() => {
-      veil.classList.remove('on'); cap.textContent = s.t; cap.classList.remove('hide');
-      const r = $('#ring'); r.classList.remove('go');
-      if (s.ring) { r.style.left = s.ring[0] + '%'; r.style.top = s.ring[1] + '%'; void r.offsetWidth; r.classList.add('go'); }
-      if (s.rx) { const c = $('#rx'); c.style.borderColor = 'var(--gold)'; setTimeout(() => c.style.borderColor = '', 2500); }
-    }, 450);
-  }, 300);
-  clearTimeout(timer); if (!paused && !STEPS[i].rx) timer = setTimeout(() => go(i + 1), 7000);
+const unlock = el => { if (el && !el.classList.contains('open')) { el.classList.add('open'); if (el.classList.contains('plan')) el.classList.add('open'); } };
+function reveal(list) { (list || []).forEach(p => { const el = document.querySelector(`.plan[data-p="${p}"]`); if (el && !el.classList.contains('open')) { unlock(el); $('#pnote').textContent = 'Tap the one you want, or just tell Emma.'; } }); }
+function prices(pr) { Object.entries(pr || {}).forEach(([k, v]) => { const el = document.querySelector(`[data-price="${k}"]`); if (el) el.textContent = v; }); }
+// --- live: follow Emma ---
+async function poll() {
+  if (!slug) return;
+  try {
+    const d = await fetch(N8N + 'oneweb-present-state?s=' + encodeURIComponent(slug) + (hello ? '&hello=1' : '')).then(r => r.json()); hello = 0;
+    if (d.live) {
+      if (!MEET) { MEET = true; document.body.classList.add('meet'); stopAuto(); if (!$('#site').src) $('#site').src = base(); }
+      if (d.seq !== lastSeq) { lastSeq = d.seq; if (d.show && d.show !== lastShow) show(d.show); reveal(d.reveal); prices(d.prices);
+        document.querySelectorAll('.clip').forEach(c => c.classList.toggle('oncall', c.id === 'c-' + d.clip));
+        if (d.picked) $('#pmsg').textContent = 'Payment link sent to your phone. Emma will help you through it.'; }
+    }
+  } catch (e) {}
+  setTimeout(poll, MEET ? 1500 : 4000);
 }
-$('#next').onclick = () => go(i + 1);
-$('#prev').onclick = () => go(i - 1);
-$('#pause').onclick = () => { paused = !paused; $('#pause').textContent = paused ? 'Play' : 'Pause'; if (paused) clearTimeout(timer); else go(i + 1); };
-const au = $('#au');
-$('#pb').onclick = () => { if (au.paused) { au.play().catch(() => {}); } else au.pause(); };
-au.onplay = () => { $('#pl').classList.add('playing'); $('#pb').textContent = '❚❚'; paused = true; $('#pause').textContent = 'Play'; clearTimeout(timer); };
-au.onpause = au.onended = () => { $('#pl').classList.remove('playing'); $('#pb').textContent = '▶'; };
-au.ontimeupdate = () => { $('#pg').style.width = (100 * au.currentTime / (au.duration || 1)) + '%'; };
-if (paused) $('#pause').textContent = 'Play';
-if (!slug) { build(null); $('#cap').textContent = 'Open this page from the link we texted you.'; }
-else fetch('https://n8n-production-9be3db1c.up.railway.app/webhook/oneweb-preview-data?slug=' + encodeURIComponent(slug))
-  .then(r => r.json()).then(d => build(d && d.found ? d.lead : null)).catch(() => build(null));
+// --- on your own: a simple tour ---
+const AUTO = ['top', 'about', 'services', 'book', 'contact', 'receptionist', 'plans']; let ai = 0, timer = null, paused = false;
+function auto(k) { ai = (k + AUTO.length) % AUTO.length; show(AUTO[ai]); if (AUTO[ai] === 'plans') reveal(['own', 'hosted', 'team']); clearTimeout(timer); if (!paused && ai < AUTO.length - 1) timer = setTimeout(() => auto(ai + 1), 7000); }
+function stopAuto() { clearTimeout(timer); paused = true; }
+$('#next').onclick = () => auto(ai + 1); $('#prev').onclick = () => auto(ai - 1);
+$('#pause').onclick = () => { paused = !paused; $('#pause').textContent = paused ? 'Play' : 'Pause'; if (!paused) auto(ai + 1); else clearTimeout(timer); };
+// --- clips you can play yourself ---
+const au = $('#au'); let cur = '';
+document.querySelectorAll('.pbtn').forEach(b => b.onclick = () => { const c = b.dataset.c;
+  if (cur === c && !au.paused) { au.pause(); return; } cur = c; au.src = '/demo/' + KEY + '-' + c + '.mp3'; au.play().catch(() => {}); });
+au.onplay = () => { document.querySelectorAll('.clip').forEach(x => x.classList.toggle('playing', x.id === 'c-' + cur)); document.querySelector('#c-' + cur + ' .pbtn').textContent = '❚❚'; };
+au.onpause = au.onended = () => { document.querySelectorAll('.clip').forEach(x => x.classList.remove('playing')); document.querySelectorAll('.pbtn').forEach(x => x.textContent = '▶'); };
+// --- pick a plan ---
+document.querySelectorAll('[data-pick]').forEach(b => b.onclick = async () => {
+  const m = $('#pmsg'); b.disabled = true; m.style.color = ''; m.textContent = 'Sending your secure payment link…';
+  try { const r = await fetch(N8N + 'oneweb-present-pick', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ s: slug, plan: b.dataset.pick }) }).then(r => r.json());
+    if (r.ok) m.textContent = 'Done. Your secure payment link is in your texts.'; else { m.style.color = '#e08a7a'; m.textContent = r.error === 'not yet' ? 'One sec, Emma is still going over this one.' : (r.error || 'Reply to our text and we\'ll send your payment link.'); b.disabled = false; } }
+  catch (e) { m.style.color = '#e08a7a'; m.textContent = 'Reply to our text and we\'ll send your payment link.'; b.disabled = false; } });
+// --- start ---
+if (!slug) { $('#cap').textContent = 'Open this page from the link we texted you.'; $('#cap').classList.remove('hide'); }
+else fetch(N8N + 'oneweb-preview-data?slug=' + encodeURIComponent(slug)).then(r => r.json()).then(d => {
+  LEAD = d && d.found ? d.lead : null; KEY = (KEYS.find(([, re]) => re.test(((LEAD && LEAD.category) || '') + ' ' + ((LEAD && LEAD.name) || ''))) || ['plumbing'])[0];
+  document.title = ((LEAD && LEAD.name) || 'Your website') + ' · One Web';
+}).catch(() => {}).finally(() => { $('#site').src = base(); setTimeout(() => { if (!MEET) auto(0); }, 2500); poll(); });
 </script>
 </body>
 </html>
