@@ -600,7 +600,7 @@ async function tools(body) {
 }
 async function rxApi(body) { const r = await api(body); if (r && r.rx) { RX = r.rx; RXP = r.plan || ''; } return r; }
 const fmtDay = d => { try { return new Date(d + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }); } catch (e) { return d; } };
-const FIELD_NAMES = { agent: 'Her name', greet: 'Greeting', faq: 'What she knows (FAQ)', style: 'How she handles calls', urgentWords: 'Urgent for you', jobMins: 'Job length', afterHours: 'After hours' };
+const FIELD_NAMES = { agent: 'Her name', greet: 'Greeting', faq: 'What she knows (FAQ)', style: 'How she handles calls', urgentWords: 'Urgent for you', jobMins: 'Job length', afterHours: 'After hours', followUp: 'Who follows up' };
 
 function agents() {
   if (!RX) { rxApi({ op: 'rx_get' }).then(() => { if (TAB === 'agents') render(); }).catch(() => {}); return head('AI receptionist') + '<div class="card"><p class="note">Loading…</p></div>'; }
@@ -641,6 +641,7 @@ function agents() {
     <label>How she handles calls<textarea name="style" rows="3">${esc(R.style)}</textarea></label>
     <label>Also urgent for you<input name="urgentWords" value="${esc(R.urgentWords)}" placeholder="e.g. no hot water, sewage backup"></label>
     <label>After hours<select name="afterHours"><option value="book" ${R.afterHours !== 'message' ? 'selected' : ''}>Book the next open time</option><option value="message" ${R.afterHours === 'message' ? 'selected' : ''}>Take a message for me</option></select></label>
+    <label>When she tells callers who will follow up<select name="followUp"><option value="team" ${R.followUp !== 'owner' ? 'selected' : ''}>"Our team will reach out"</option><option value="owner" ${R.followUp === 'owner' ? 'selected' : ''}>"The owner will reach out"</option></select></label>
     <div class="row"><label>Send urgent calls to <span class="note">(transfer)</span><input name="transfer" type="tel" value="${esc(fmtPhone(R.transfer))}" placeholder="(555) 123-4567"></label>
       <label>Your cell <span class="note">(alerts + owner calls)</span><input name="ownerPhone" type="tel" value="${esc(fmtPhone(R.ownerPhone))}" placeholder="(555) 123-4567"></label></div>
     <label>Owner PIN <span class="note">${R.hasPin ? '(set; type a new one to change it)' : '(4–6 digits; needed to change your schedule by phone)'}</span><input name="pin" inputmode="numeric" autocomplete="off" maxlength="6" placeholder="${R.hasPin ? '••••' : 'Pick a PIN'}"></label>
@@ -661,7 +662,7 @@ function agents() {
 function coachView() {
   const c = COACH, keys = Object.keys(c.changes || {});
   return `<div style="border:1px solid var(--line);border-radius:14px;padding:14px;margin-top:12px"><p style="margin:0 0 10px">${esc(c.reply)}</p>
-    ${keys.map(k => `<div style="margin:10px 0"><div class="note" style="font-size:13px">${FIELD_NAMES[k] || k}</div><div style="white-space:pre-wrap;font-size:14px;background:var(--bg);border-radius:10px;padding:10px">${esc(k === 'jobMins' ? c.changes[k] + ' minutes' : k === 'afterHours' ? (c.changes[k] === 'message' ? 'Take a message' : 'Book the next open time') : c.changes[k])}</div></div>`).join('')}
+    ${keys.map(k => `<div style="margin:10px 0"><div class="note" style="font-size:13px">${FIELD_NAMES[k] || k}</div><div style="white-space:pre-wrap;font-size:14px;background:var(--bg);border-radius:10px;padding:10px">${esc(k === 'jobMins' ? c.changes[k] + ' minutes' : k === 'afterHours' ? (c.changes[k] === 'message' ? 'Take a message' : 'Book the next open time') : k === 'followUp' ? (c.changes[k] === 'owner' ? 'The owner will reach out' : 'Our team will reach out') : c.changes[k])}</div></div>`).join('')}
     ${(c.refused || []).map(x => `<p class="note" style="margin:8px 0 0">⚠️ ${esc(x)}</p>`).join('')}
     <div class="bkact">${keys.length ? '<button class="btn btn-gold" type="button" id="capply">Apply</button>' : ''}<button class="btn btn-line" type="button" id="ccancel">${keys.length ? 'Cancel' : 'OK'}</button></div></div>`;
 }
@@ -700,7 +701,7 @@ function bindAgents() {
   $('#rxf').onsubmit = async e => { e.preventDefault(); const F = e.target, m = $('#smsg');
     const pin = F.pin.value.trim(); if (pin && !/^\d{4,6}$/.test(pin)) { say(m, 'The PIN needs to be 4 to 6 digits.'); return; }
     const fields = { agent: F.agent.value, jobMins: Number(F.jobMins.value), greet: F.greet.value, faq: F.faq.value, style: F.style.value, urgentWords: F.urgentWords.value,
-      afterHours: F.afterHours.value, transfer: F.transfer.value, ownerPhone: F.ownerPhone.value }; if (pin) fields.pin = pin;
+      afterHours: F.afterHours.value, followUp: F.followUp.value, transfer: F.transfer.value, ownerPhone: F.ownerPhone.value }; if (pin) fields.pin = pin;
     m.className = 'msg'; m.textContent = 'Saving…';
     try { await rxApi({ op: 'rx_save', fields }); render(); say($('#smsg'), 'Saved. Her next call uses these settings.', true); } catch (err) { if (err.message !== 'auth') say(m, 'Could not save. Try again.'); } };
   document.querySelectorAll('[data-rmb]').forEach(b => b.onclick = async () => { const bl = RX.blocks.slice(); bl.splice(Number(b.dataset.rmb), 1); try { await rxApi({ op: 'rx_save', fields: { blocks: bl } }); render(); } catch (e) {} });
@@ -736,7 +737,7 @@ async function demoTools(b) {
 }
 function demoRx(b) {
   const now = Date.now();
-  if (!DD.rx) DD.rx = { num: '+12175550188', on: true, agent: '', greet: '', faq: 'Free estimates. We take cash, cards and Zelle.', style: '', urgentWords: '', jobMins: 60, afterHours: 'book', transfer: '', ownerPhone: '+12175550123', hasPin: true, blocks: [], usage: null, canUndo: false, hist: [],
+  if (!DD.rx) DD.rx = { num: '+12175550188', on: true, agent: '', greet: '', faq: 'Free estimates. We take cash, cards and Zelle.', style: '', urgentWords: '', jobMins: 60, afterHours: 'book', followUp: 'team', transfer: '', ownerPhone: '+12175550123', hasPin: true, blocks: [], usage: null, canUndo: false, hist: [],
     minutes: { used: 86, calls: 41, included: 300 }, msgs: [{ at: now - 7200e3, name: 'Dana', phone: '+12175550145', msg: 'Can you call me about a quote for a new water heater?', urgent: false }],
     calls: [{ at: now - 3600e3, from: '+12175550177', secs: 132, outcome: 'booked', summary: 'Booked a clogged kitchen sink for tomorrow at 9am.', transcript: [{ r: 'ai', t: 'Thanks for calling. How can I help you?' }, { r: 'caller', t: 'My kitchen sink is clogged.' }, { r: 'ai', t: 'Sorry about that. We can get someone out. We\'ve got today at 4pm, tomorrow at 9am, or tomorrow at 1pm. Which works best?' }, { r: 'caller', t: 'Tomorrow at 9.' }] }] };
   const R = DD.rx;
