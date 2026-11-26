@@ -395,9 +395,13 @@ function bookings() {
 }
 function reviews() {
   const sent = D.reviewsSent || [];
-  return `<div class="card"><h2>Ask for a Google review</h2>
+  return `<div class="card"><h2>Your Google Business Profile</h2>
+    <p class="note" style="margin-top:-6px">This is what shows up on Google Maps and in "near me" searches, and it's where reviews live. Three quick checks:</p>
+    <ol class="note" style="padding-left:18px;margin:6px 0 12px"><li><b>Claimed and verified.</b> Sign in at Google Business Profile with the Google account you use for the business.</li><li><b>Website set to your new site</b>, so Google sends people to it.</li><li><b>Services and service areas match your site</b>: same services, same towns.</li></ol>
+    <a class="btn btn-line btn-sm" href="https://business.google.com/" target="_blank" rel="noopener">Open Google Business Profile</a></div>
+  <div class="card"><h2>Ask for a Google review</h2>
     <p class="note" style="margin-top:-6px">After a job, send your customer a short, friendly email with a link straight to your Google review page. Each customer is only asked once.</p>
-    <p class="note">Automatic: when you mark a lead <b>Won</b> in Leads and they left an email, we email them your review link 2 days later.</p>
+    <p class="note">Automatic: the day after every booking, we send the customer your review link (by text if your text reminders are on, otherwise by email if they gave one). Marking a lead <b>Won</b> in Leads does the same. Each customer is asked once.</p>
     <form id="rf"><div class="row"><label>Customer first name<input name="name" maxlength="60" autocomplete="off"></label><label>Customer email<input name="email" type="email" autocomplete="off" required></label></div>
     <button class="btn btn-gold" type="submit">Send review request</button><p class="msg" id="rmsg" role="status" aria-live="polite"></p></form></div>
     <div class="card"><h2>Your review link</h2><p class="note" style="margin-top:-6px">${D.reviewUrl ? 'This is where customers land. Change it if you have a different Google review link.' : 'Paste your Google review link (Google Business Profile, then "Ask for reviews").'}</p>
