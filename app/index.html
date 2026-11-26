@@ -690,14 +690,14 @@ let TX = null, TXMSG = '';
 function texting(){
   if (!TX) { call(EDIT, { op: 'sms_list' }).then(r => { TX = r; render(); }).catch(e => { TX = { reqs: [], on: [] }; TXMSG = e.message; render(); }); }
   const reqs = (TX && TX.reqs) || [], on = (TX && TX.on) || [];
-  return `<h1>Texting &amp; reminders</h1><p class="sub">Clients who turn on text reminders get their own local number (a Ready sub-account under your account). Approving buys the number on your Ready card, about $2 a month each, and turns reminders on.</p>
+  return `<h1>Texting &amp; reminders</h1><p class="sub">Clients who turn on text reminders get their own Ready sub-account, their own carrier registration (their legal name + EIN, $25/month, billed to them at cost) and their own local number (about $2/month). Approving files the registration and buys the number on your Ready card.</p>
   ${TXMSG ? `<div class="card" style="color:var(--bad)">${esc(TXMSG)}</div>` : ''}
-  <div class="card"><h2>Waiting for you</h2>${!TX ? '<p class="sub">Loading…</p>' : reqs.length ? reqs.map(r => `<div class="toggle"><span><b>${esc(r.name)}</b><br><small style="color:var(--mut)">Area code ${esc(r.area || '?')} · asked ${esc(ago(r.at))}${r.st === 'error' ? ' · <span style="color:var(--bad)">last try failed: ' + esc(r.err) + '</span>' : ''}</small></span><button class="btn btn-gold btn-sm" data-txok="${esc(r.slug)}" data-txname="${esc(r.name)}">${r.st === 'error' ? 'Try again' : 'Approve & buy number'}</button></div>`).join('') : '<p class="sub" style="margin:0">No requests right now.</p>'}</div>
+  <div class="card"><h2>Waiting for you</h2>${!TX ? '<p class="sub">Loading…</p>' : reqs.length ? reqs.map(r => `<div class="toggle"><span><b>${esc(r.name)}</b><br><small style="color:var(--mut)">Area code ${esc(r.area || '?')} · asked ${esc(ago(r.at))}${r.st === 'error' ? ' · <span style="color:var(--bad)">last try failed: ' + esc(r.err) + '</span>' : ''}</small></span><button class="btn btn-gold btn-sm" data-txok="${esc(r.slug)}" data-txname="${esc(r.name)}">${r.st === 'error' ? 'Try again' : 'Approve & register'}</button></div>`).join('') : '<p class="sub" style="margin:0">No requests right now.</p>'}</div>
   <div class="card"><h2>Reminders on</h2>${on.length ? on.map(o => `<div class="toggle"><span><b>${esc(o.name)}</b></span><span style="color:var(--mut)">${esc(o.num)}</span></div>`).join('') : '<p class="sub" style="margin:0">No clients yet.</p>'}</div>`;
 }
 function bindTexting(){
   document.querySelectorAll('[data-txok]').forEach(b => b.onclick = async () => {
-    if (!confirm('Buy a local number for ' + b.dataset.txname + ' on your Ready card (about $2/month) and turn on their text reminders?')) return;
+    if (!confirm('Register ' + b.dataset.txname + ' for texting ($25/month, bill it to them) and buy their local number (about $2/month) on your Ready card?')) return;
     b.disabled = true; b.textContent = 'Setting up…'; TXMSG = '';
     try { const r = await call(TXSETUP, { slug: b.dataset.txok }); TXMSG = r.ok ? 'Done: ' + b.dataset.txname + ' texts from ' + r.num + (r.canSendNow ? '.' : '. Carrier approval may take a few days before texts go out.') : 'Setup failed: ' + (r.error || 'unknown error'); }
     catch (e) { TXMSG = 'Setup failed: ' + e.message; }
