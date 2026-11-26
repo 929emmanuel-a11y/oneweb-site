@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Your Website · One Web</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0a0a;--bg2:#131312;--line:rgba(237,232,224,.12);--txt:#ede8e0;--mut:#9b958c;--gold:#c9a86a;--gold2:#e6cf9e;--ok:#7fbf8e;
+--serif:"Instrument Serif",Georgia,serif;--sans:"Inter",system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
+header{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line);background:rgba(10,10,10,.92);backdrop-filter:blur(10px)}
+.brand{font-family:var(--serif);font-size:22px;white-space:nowrap}
+.live{display:none;align-items:center;gap:7px;font-size:13px;color:var(--gold2);border:1px solid rgba(201,168,106,.45);border-radius:999px;padding:4px 10px}
+.live i{width:8px;height:8px;border-radius:50%;background:#e25b4b;animation:blink 1.2s infinite}
+body.meet .live{display:inline-flex}
+@keyframes blink{50%{opacity:.25}}
+.ctl{display:flex;gap:8px}
+body.meet .ctl{display:none}
+button{font:inherit;cursor:pointer}
+.b{border:1px solid var(--line);background:var(--bg2);color:var(--txt);border-radius:999px;padding:7px 14px;font-size:14px}
+main{display:grid;grid-template-columns:1fr 380px;height:calc(100vh - 53px)}
+.stage{position:relative;background:#fff;min-height:0}
+iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#fff}
+.veil{position:absolute;inset:0;background:var(--bg);opacity:0;pointer-events:none;transition:opacity .35s}
+.veil.on{opacity:.85}
+.cap{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);max-width:min(620px,92%);background:rgba(10,10,10,.9);color:var(--txt);border:1px solid rgba(201,168,106,.5);
+  border-radius:16px;padding:11px 18px;font-size:16px;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.35);transition:opacity .3s,transform .3s}
+.cap.hide{opacity:0;transform:translate(-50%,10px)}
+.ring{position:absolute;width:120px;height:120px;border-radius:50%;border:3px solid var(--gold);pointer-events:none;opacity:0;transform:translate(-50%,-50%) scale(.6)}
+.ring.go{animation:ring 2.2s ease-out 2}
+@keyframes ring{0%{opacity:0;transform:translate(-50%,-50%) scale(.5)}20%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) scale(1.6)}}
+aside{border-left:1px solid var(--line);padding:16px;overflow:auto;display:flex;flex-direction:column;gap:14px}
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:18px;padding:16px;transition:border-color .4s,box-shadow .4s}
+.card.focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,168,106,.18)}
+h2{font-family:var(--serif);font-weight:400;font-size:26px;margin:0 0 4px;line-height:1.1}
+.note{color:var(--mut);font-size:14px;margin:0}
+.locked{position:relative}
+.locked .inner{filter:blur(9px);opacity:.5;pointer-events:none;transition:filter .7s,opacity .7s}
+.locked.open .inner{filter:none;opacity:1;pointer-events:auto}
+.clip.locked{position:relative;min-height:48px}
+.clip.locked .inner{filter:none;opacity:1;pointer-events:none}
+.clip.locked:not(.open) .pbtn{background:#3a3833;color:#8d877d;pointer-events:auto;cursor:pointer}
+.clip.nudge .pbtn{animation:nudge .4s}.clip.nudge .sub{color:var(--gold2)}
+@keyframes nudge{0%,100%{transform:none}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}.clip.locked:not(.open) .sub::before{content:'🔒 '}.clip.locked:not(.open) .bars{filter:blur(3px);opacity:.4}
+.clip.locked .lbl b{filter:blur(0)}
+.onlyyou{margin:4px 0 2px;border-top:2px solid #e0453a;padding-top:8px;text-align:center;color:#e0453a;font-size:12.5px;font-weight:600;line-height:1.4}
+.note.adj{margin-top:12px;font-size:13px}
+.locked .soon{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--mut);font-size:14px;transition:opacity .4s}
+.locked.open .soon{opacity:0;pointer-events:none}
+.clip{display:flex;align-items:center;gap:12px;margin-top:12px}
+.pbtn{position:relative;width:48px;height:48px;border-radius:50%;border:0;background:var(--gold);color:#17130b;font-size:16px;flex:none}
+.pbtn::before,.pbtn::after{content:"";position:absolute;inset:0;border-radius:50%;border:2px solid var(--gold);opacity:0}
+.playing .pbtn::before{animation:pulse 1.8s ease-out infinite}.playing .pbtn::after{animation:pulse 1.8s ease-out .9s infinite}
+@keyframes pulse{0%{opacity:.8;transform:scale(1)}100%{opacity:0;transform:scale(1.8)}}
+.clip b{display:block;font-weight:600;font-size:15px}.clip small{color:var(--mut);font-size:13px}
+.bars{display:flex;gap:3px;align-items:center;height:22px;margin-left:auto}
+.bars i{display:block;width:3px;height:5px;border-radius:2px;background:var(--gold2);opacity:.45}
+.playing .bars i,.oncall .bars i{animation:bar 1s ease-in-out infinite}
+.bars i:nth-child(2n){animation-delay:.15s}.bars i:nth-child(3n){animation-delay:.3s}
+@keyframes bar{0%,100%{height:5px;opacity:.45}50%{height:20px;opacity:1}}
+.plans{display:grid;gap:10px;margin-top:10px}
+.sk i{display:block;height:12px;margin:9px 0;border-radius:6px;background:rgba(237,232,224,.14)}.sk i.b{height:38px;width:100%;border-radius:99px;background:rgba(201,168,106,.35);margin-top:14px}
+.plan{border:1px solid var(--line);border-radius:14px;padding:14px;background:var(--bg)}
+.plan.open{animation:pop .5s ease-out}
+@keyframes pop{0%{transform:scale(.97)}60%{transform:scale(1.02)}100%{transform:none}}
+.plan h3{margin:0;font-size:15px;font-weight:600}
+.price{font-family:var(--serif);font-size:34px;line-height:1.1;margin:6px 0 2px}
+.price .mo{font-family:var(--sans);font-size:15px;color:var(--mut);margin-left:6px}
+.price s{font-family:var(--sans);font-size:15px;color:var(--mut);margin-left:6px}
+.plan ul{margin:6px 0 10px;padding-left:18px;color:var(--mut);font-size:14px}
+.tag{display:inline-block;font-size:12px;color:#17130b;background:var(--gold2);border-radius:999px;padding:2px 8px;margin-left:6px;vertical-align:2px}
+.pick{width:100%;border:0;border-radius:999px;padding:10px;background:var(--gold);color:#17130b;font-weight:600}
+.pick:disabled{opacity:.6}
+.msg{font-size:14px;margin:8px 0 0;color:var(--ok)}
+@media (max-width:860px){
+  main{grid-template-columns:1fr;height:auto}
+  .stage{height:calc(100dvh - 53px)}            /* their site fills the screen; scroll past its end and our section is right below */
+  aside{border-left:0;padding-top:8px}
+  .cap{bottom:84px}
+  body.meet .live{display:none}
+  .more{display:inline-flex !important}
+}
+.more{display:none;align-items:center;white-space:nowrap;border:1px solid rgba(201,168,106,.7);border-radius:999px;padding:6px 12px;background:transparent;color:var(--gold2);font:600 13px var(--sans)}
+@media (prefers-reduced-motion:reduce){.ring.go,.playing .pbtn::before,.playing .pbtn::after,.bars i,.plan.open{animation:none}}
+</style>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+</head>
+<body>
+<header>
+  <div class="brand">One Web</div>
+  <span class="live"><i></i>Live with Emma</span>
+  <button class="more" id="more" type="button">▾ Receptionist &amp; plans</button>
+</header>
+<main>
+  <div class="stage" id="stage">
+    <iframe id="site" title="Your website"></iframe>
+    <div class="veil" id="veil"></div>
+    <div class="ring" id="ring"></div>
+    <div class="cap hide" id="cap" role="status" aria-live="polite"></div>
+  </div>
+  <aside>
+    <div class="onlyyou" role="note">🔒 Only you can see this. Your customers won't see anything below this line.</div>
+    <div class="card" id="rx"><div>
+      <h2 id="rxTitle">Your AI receptionist</h2>
+      <p class="note">This is what your receptionist is going to sound like.</p>
+      <div class="clip locked" id="c-answering"><div class="inner" style="display:flex;align-items:center;gap:12px;width:100%"><button class="pbtn" data-c="answering" aria-label="Play">▶</button><div class="lbl"><b>Answering a call</b><small class="sub">Emma will play this for you</small></div><div class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div></div>
+      <div class="clip locked" id="c-booking"><div class="inner" style="display:flex;align-items:center;gap:12px;width:100%"><button class="pbtn" data-c="booking" aria-label="Play">▶</button><div class="lbl"><b>Booking the job</b><small class="sub">Emma will play this for you</small></div><div class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div></div>
+      <p class="note adj">The voice and the script are yours to change: male or female, calmer or more upbeat, and exactly what it says.</p>
+      <audio id="au" preload="none"></audio>
+    </div></div>
+    <div class="card" id="plansCard"><h2>Plans</h2><p class="note" id="pnote">Emma will go over these with you.</p>
+      <div class="plans">
+        <div class="plan locked" data-p="own"><div class="soon">•••</div><div class="inner"><div class="sk" aria-hidden="true"><i style="width:38%"></i><i style="width:52%;height:28px"></i><i style="width:84%"></i><i style="width:66%"></i><i class="b"></i></div></div></div>
+        <div class="plan locked" data-p="hosted"><div class="soon">•••</div><div class="inner"><div class="sk" aria-hidden="true"><i style="width:38%"></i><i style="width:52%;height:28px"></i><i style="width:84%"></i><i style="width:66%"></i><i class="b"></i></div></div></div>
+        <div class="plan locked" data-p="team"><div class="soon">•••</div><div class="inner"><div class="sk" aria-hidden="true"><i style="width:38%"></i><i style="width:52%;height:28px"></i><i style="width:84%"></i><i style="width:66%"></i><i class="b"></i></div></div></div>
+      </div>
+      <p class="msg" id="pmsg" role="status" aria-live="polite"></p>
+    </div>
+  </aside>
+</main>
+<script>
+const N8N = 'https://n8n-production-9be3db1c.up.railway.app/webhook/';
+const q = new URLSearchParams(location.search);
+const slug = (q.get('s') || '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 80);
+const $ = s => document.querySelector(s);
+const KEYS = [['renovation', /contract|renovat|remodel|construct|handyman|floor|cabinet|kitchen|bath|carpent|tile|drywall/i], ['cleaning', /clean|maid|janitor|pressure wash/i],
+  ['auto', /auto|mechanic|car |tire|collision|body shop|transmission|detail/i], ['medspa', /spa|aesthetic|facial|massage|beauty|nail|salon|hair|barber|lash|brow|skin|wax|dental|chiro/i], ['plumbing', /./]];
+// their own sample calls first, then the trade's sample (same list as the voice server), then the first recordings
+const GKEYS = [['detailing', /detail|car wash|ceramic coat/i], ['auto', /auto|mechanic|car repair|tire|collision|body shop|transmission|brake/i], ['barber', /barber/i],
+  ['salon', /salon|hair|nail|beauty|lash|brow|wax/i], ['medspa', /spa|aesthetic|facial|massage|skin|dent|chiro|clinic/i], ['hvac', /hvac|heat|air cond|cooling|furnace/i],
+  ['electrical', /electric/i], ['roofing', /roof/i], ['renovation', /contract|renovat|remodel|construct|handyman|floor|cabinet|kitchen|bath|carpent|tile|drywall|paint/i],
+  ['cleaning', /clean|maid|janitor|pressure wash/i], ['landscaping', /landscap|lawn|garden|tree/i], ['pest', /pest|extermin/i]];
+let GKEY = 'plumbing';
+let LEAD = null, KEY = 'plumbing', lastSeq = -1, hello = 1, lastShow = '';
+// Nothing on this page reveals itself: only Emma (on the call) reveals the samples and the plans, and they stay revealed for this business.
+// We never scroll their website for them (that would fake our scroll stats): Emma tells them where to look.
+const CAPS = { receptionist: 'Scroll down: your AI receptionist samples are below.', plans: 'Scroll down to see the plans.' };
+// Plan wording lives here; prices never do. The server only sends a plan's numbers after Emma reveals it.
+const PLAN = { own: { h: 'Website', feats: ['Your site, yours to keep', 'Price if you go ahead today'] },
+  hosted: { h: 'Website + hosting <span class="tag">30 days free</span>', feats: ['We host it and keep it running', 'Updates, security, changes by text'] },
+  team: { h: 'Website + hosting + AI team <span class="tag">30 days free</span>', feats: ['AI receptionist answers and books 24/7', 'Review requests and new Google pages monthly', 'Chat on your site'] } };
+const num = v => String(Math.round(Number(v) || 0));
+function fill(el, k, price, ex) {
+  const P = PLAN[k]; if (!P || !price) return false; ex = ex || {};
+  el.querySelector('.inner').innerHTML = `<h3>${P.h}</h3><div class="price">$<span data-price="${k}">${num(price)}</span>${ex.list ? `<s>$${num(ex.list)}</s>` : ''}${ex.mo ? `<span class="mo">+ $${num(ex.mo)}/mo</span>` : ''}</div><ul>${P.feats.map(f => `<li>${f}</li>`).join('')}</ul><button class="pick" data-pick="${k}">Choose this</button>`;
+  return true;
+}
+const open = el => { if (el && !el.classList.contains('open')) el.classList.add('open'); };
+const mobile = () => innerWidth <= 860;
+$('#more').onclick = () => $('#rx').scrollIntoView({ behavior: 'smooth', block: 'start' });   // our section below the site
+const CLIP_LEN = { answering: 'about 25 seconds', booking: 'about 30 seconds' };
+function apply(d) {
+  document.body.classList.toggle('meet', !!d.live);
+  (d.clips || []).forEach(c => { const el = $('#c-' + c); if (el && !el.classList.contains('open')) { open(el); const sb = el.querySelector('.sub'); if (sb) sb.textContent = CLIP_LEN[c] || ''; } });
+  (d.reveal || []).forEach(p => { const el = document.querySelector(`.plan[data-p="${p}"]`); if (el && !el.classList.contains('open') && fill(el, p, (d.prices || {})[p], (d.extra || {})[p])) { open(el); $('#pnote').textContent = 'Tap the one you want, or just tell Emma.'; } });
+  Object.entries(d.prices || {}).forEach(([k, v]) => { const el = document.querySelector(`[data-price="${k}"]`); if (el) el.textContent = v; });
+  document.querySelectorAll('.clip').forEach(c => c.classList.toggle('oncall', !!d.live && c.id === 'c-' + d.clip));
+  if (d.picked) $('#pmsg').textContent = 'Payment link sent to your phone.';
+  const show = d.live ? (d.show || '') : '';
+  if (show !== lastShow) { lastShow = show;
+    const card = show === 'receptionist' ? $('#rx') : show === 'plans' ? $('#plansCard') : null;
+    document.querySelectorAll('.card').forEach(c => c.classList.toggle('focus', c === card));
+    const cap = $('#cap');
+    if (card) { cap.textContent = mobile() ? (show === 'plans' ? 'Here are the plans, just below.' : 'Your AI receptionist, just below.') : CAPS[show]; cap.classList.remove('hide');
+      if (mobile()) card.scrollIntoView({ behavior: 'smooth', block: 'start' });   // scrolls to OUR section below the site, never inside their site
+      else card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } else cap.classList.add('hide'); }
+}
+async function poll() {
+  if (!slug) return;
+  try { const d = await fetch(N8N + 'oneweb-present-state?s=' + encodeURIComponent(slug) + (hello ? '&hello=1' : '')).then(r => r.json()); hello = 0;
+    if (d.seq !== lastSeq || d.live) { lastSeq = d.seq; apply(d); }
+    setTimeout(poll, d.live ? 1500 : 5000);
+  } catch (e) { setTimeout(poll, 5000); }
+}
+// samples they can replay once Emma has shown them
+const au = $('#au'); let cur = ''; const VOICE = 'https://oneweb-voice-production.up.railway.app';
+// we count taps on the samples: locked ones (they want to hear it before Emma calls) and replays after she unlocks them
+const TAPS = { sid: Math.random().toString(36).slice(2, 12), la: 0, lb: 0, pa: 0, pb: 0 };
+let tapTimer = 0;
+const sendTaps = final => { if (!slug || !(TAPS.la + TAPS.lb + TAPS.pa + TAPS.pb)) return;
+  try { navigator.sendBeacon(N8N + 'oneweb-present-tap', new URLSearchParams({ s: slug, d: JSON.stringify(Object.assign({}, TAPS, { final: final ? 1 : 0, n: (LEAD && LEAD.name) || '' })) })); } catch (e) {} };
+addEventListener('pagehide', () => sendTaps(1));
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') sendTaps(1); });
+document.querySelectorAll('.pbtn').forEach(b => b.onclick = () => { const c = b.dataset.c, box = $('#c-' + c);
+  if (!box.classList.contains('open')) {                     // still locked: a little shake, it can't play until Emma unlocks it
+    TAPS[c === 'booking' ? 'lb' : 'la']++; clearTimeout(tapTimer); tapTimer = setTimeout(() => sendTaps(0), 1500);
+    const sb = box.querySelector('.sub'); if (sb) sb.textContent = 'Unlocks when Emma calls';
+    box.classList.remove('nudge'); void box.offsetWidth; box.classList.add('nudge'); return; }
+  if (au.paused || cur !== c) TAPS[c === 'booking' ? 'pb' : 'pa']++;
+  if (cur === c && !au.paused) { au.pause(); return; } cur = c; const tries = [VOICE + '/clip/' + encodeURIComponent(slug) + '/' + c, VOICE + '/clip/generic-' + GKEY + '/' + c, '/demo/' + KEY + '-' + c + '.mp3'];
+  au.onerror = () => { const i = tries.indexOf(au.src) + 1; if (i > 0 && i < tries.length) { au.src = tries[i]; au.play().catch(() => {}); } };
+  au.src = tries[0]; au.play().catch(() => {}); });
+au.onplay = () => { document.querySelectorAll('.clip').forEach(x => x.classList.toggle('playing', x.id === 'c-' + cur)); const b = document.querySelector('#c-' + cur + ' .pbtn'); if (b) b.textContent = '❚❚'; };
+au.onpause = au.onended = () => { document.querySelectorAll('.clip').forEach(x => x.classList.remove('playing')); document.querySelectorAll('.pbtn').forEach(x => x.textContent = '▶'); };
+document.querySelector('.plans').addEventListener('click', async ev => { const b = ev.target.closest('[data-pick]'); if (!b || b.disabled) return;
+  const m = $('#pmsg'); b.disabled = true; m.style.color = ''; m.textContent = 'Sending your secure payment link…';
+  try { const r = await fetch(N8N + 'oneweb-present-pick', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ s: slug, plan: b.dataset.pick }) }).then(r => r.json());
+    if (r.ok) m.textContent = 'Done. Your secure payment link is in your texts.'; else { m.style.color = '#e08a7a'; m.textContent = r.error === 'not yet' ? 'One sec, Emma is still going over this one.' : (r.error || 'Reply to our text and we\'ll send your payment link.'); b.disabled = false; } }
+  catch (e) { m.style.color = '#e08a7a'; m.textContent = 'Reply to our text and we\'ll send your payment link.'; b.disabled = false; } });
+if (!slug) { $('#cap').textContent = 'Open this page from the link we sent you.'; $('#cap').classList.remove('hide'); }
+else { $('#site').src = 'https://' + slug + '.onewebonline.com/';
+  fetch(N8N + 'oneweb-preview-data?slug=' + encodeURIComponent(slug)).then(r => r.json()).then(d => {
+    LEAD = d && d.found ? d.lead : null; KEY = (KEYS.find(([, re]) => re.test(((LEAD && LEAD.category) || '') + ' ' + ((LEAD && LEAD.name) || ''))) || ['plumbing'])[0]; GKEY = (GKEYS.find(([, re]) => re.test(((LEAD && LEAD.category) || '') + ' ' + ((LEAD && LEAD.name) || ''))) || ['plumbing'])[0];
+    document.title = ((LEAD && LEAD.name) || 'Your website') + ' · One Web'; if (LEAD && LEAD.name) $('#rxTitle').textContent = LEAD.name + (/s$/i.test(LEAD.name) ? "'" : "'s") + ' AI receptionist'; }).catch(() => {});
+  poll(); }
+</script>
+</body>
+</html>
