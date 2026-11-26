@@ -128,6 +128,12 @@ const slug = (q.get('s') || '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0
 const $ = s => document.querySelector(s);
 const KEYS = [['renovation', /contract|renovat|remodel|construct|handyman|floor|cabinet|kitchen|bath|carpent|tile|drywall/i], ['cleaning', /clean|maid|janitor|pressure wash/i],
   ['auto', /auto|mechanic|car |tire|collision|body shop|transmission|detail/i], ['medspa', /spa|aesthetic|facial|massage|beauty|nail|salon|hair|barber|lash|brow|skin|wax|dental|chiro/i], ['plumbing', /./]];
+// their own sample calls first, then the trade's sample (same list as the voice server), then the first recordings
+const GKEYS = [['detailing', /detail|car wash|ceramic coat/i], ['auto', /auto|mechanic|car repair|tire|collision|body shop|transmission|brake/i], ['barber', /barber/i],
+  ['salon', /salon|hair|nail|beauty|lash|brow|wax/i], ['medspa', /spa|aesthetic|facial|massage|skin|dent|chiro|clinic/i], ['hvac', /hvac|heat|air cond|cooling|furnace/i],
+  ['electrical', /electric/i], ['roofing', /roof/i], ['renovation', /contract|renovat|remodel|construct|handyman|floor|cabinet|kitchen|bath|carpent|tile|drywall|paint/i],
+  ['cleaning', /clean|maid|janitor|pressure wash/i], ['landscaping', /landscap|lawn|garden|tree/i], ['pest', /pest|extermin/i]];
+let GKEY = 'plumbing';
 let LEAD = null, KEY = 'plumbing', lastSeq = -1, hello = 1, lastShow = '';
 // Nothing on this page reveals itself: only Emma (on the call) reveals the samples and the plans, and they stay revealed for this business.
 // We never scroll their website for them (that would fake our scroll stats): Emma tells them where to look.
@@ -175,8 +181,9 @@ document.querySelectorAll('.pbtn').forEach(b => b.onclick = () => { const c = b.
     const sb = box.querySelector('.sub'); if (sb) sb.textContent = 'Unlocks when Emma calls';
     box.classList.remove('nudge'); void box.offsetWidth; box.classList.add('nudge'); return; }
   if (au.paused || cur !== c) TAPS[c === 'booking' ? 'pb' : 'pa']++;
-  if (cur === c && !au.paused) { au.pause(); return; } cur = c; au.onerror = () => { if (au.src.indexOf(VOICE) === 0) { au.src = '/demo/' + KEY + '-' + c + '.mp3'; au.play().catch(() => {}); } };
-  au.src = VOICE + '/clip/' + encodeURIComponent(slug) + '/' + c; au.play().catch(() => {}); });
+  if (cur === c && !au.paused) { au.pause(); return; } cur = c; const tries = [VOICE + '/clip/' + encodeURIComponent(slug) + '/' + c, VOICE + '/clip/generic-' + GKEY + '/' + c, '/demo/' + KEY + '-' + c + '.mp3'];
+  au.onerror = () => { const i = tries.indexOf(au.src) + 1; if (i > 0 && i < tries.length) { au.src = tries[i]; au.play().catch(() => {}); } };
+  au.src = tries[0]; au.play().catch(() => {}); });
 au.onplay = () => { document.querySelectorAll('.clip').forEach(x => x.classList.toggle('playing', x.id === 'c-' + cur)); const b = document.querySelector('#c-' + cur + ' .pbtn'); if (b) b.textContent = '❚❚'; };
 au.onpause = au.onended = () => { document.querySelectorAll('.clip').forEach(x => x.classList.remove('playing')); document.querySelectorAll('.pbtn').forEach(x => x.textContent = '▶'); };
 document.querySelectorAll('[data-pick]').forEach(b => b.onclick = async () => {
@@ -187,7 +194,7 @@ document.querySelectorAll('[data-pick]').forEach(b => b.onclick = async () => {
 if (!slug) { $('#cap').textContent = 'Open this page from the link we sent you.'; $('#cap').classList.remove('hide'); }
 else { $('#site').src = 'https://' + slug + '.onewebonline.com/';
   fetch(N8N + 'oneweb-preview-data?slug=' + encodeURIComponent(slug)).then(r => r.json()).then(d => {
-    LEAD = d && d.found ? d.lead : null; KEY = (KEYS.find(([, re]) => re.test(((LEAD && LEAD.category) || '') + ' ' + ((LEAD && LEAD.name) || ''))) || ['plumbing'])[0];
+    LEAD = d && d.found ? d.lead : null; KEY = (KEYS.find(([, re]) => re.test(((LEAD && LEAD.category) || '') + ' ' + ((LEAD && LEAD.name) || ''))) || ['plumbing'])[0]; GKEY = (GKEYS.find(([, re]) => re.test(((LEAD && LEAD.category) || '') + ' ' + ((LEAD && LEAD.name) || ''))) || ['plumbing'])[0];
     document.title = ((LEAD && LEAD.name) || 'Your website') + ' · One Web'; if (LEAD && LEAD.name) $('#rxTitle').textContent = LEAD.name + (/s$/i.test(LEAD.name) ? "'" : "'s") + ' AI receptionist'; }).catch(() => {});
   poll(); }
 </script>
