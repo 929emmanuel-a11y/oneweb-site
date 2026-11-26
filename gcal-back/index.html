@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Connecting your calendar · One Web</title>
+<style>body{margin:0;background:#0a0a0a;color:#ede8e0;font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;display:grid;place-items:center;min-height:100vh;padding:16px;text-align:center}</style>
+</head>
+<body>
+<p>Connecting your Google Calendar…</p>
+<script>
+// Google sends the owner here after "Allow"; hand the one-time code to our server, which saves it and sends them back to their portal.
+location.replace('https://n8n-production-9be3db1c.up.railway.app/webhook/oneweb-gcal-back' + location.search);
+</script>
+</body>
+</html>
