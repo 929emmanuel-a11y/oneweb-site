@@ -5,3 +5,4 @@ Disallow: /portal/
 Disallow: /thanks.html
 
 Sitemap: https://onewebonline.com/sitemap.xml
+Sitemap: https://onewebonline.com/sitemap-pages.xml
