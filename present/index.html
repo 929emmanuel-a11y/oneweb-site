@@ -175,7 +175,7 @@ async function poll() {
   if (!slug) return;
   try { const d = await fetch(N8N + 'oneweb-present-state?s=' + encodeURIComponent(slug) + (hello ? '&hello=1' : '')).then(r => r.json()); hello = 0;
     if (d.seq !== lastSeq || d.live) { lastSeq = d.seq; apply(d); }
-    setTimeout(poll, d.live ? 1500 : 5000);
+    setTimeout(poll, d.live ? 600 : 5000);
   } catch (e) { setTimeout(poll, 5000); }
 }
 // samples they can replay once Emma has shown them
