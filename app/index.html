@@ -80,6 +80,19 @@ textarea{min-height:90px;resize:vertical}
  .frow{grid-template-columns:120px 1fr 40px}
  main{padding:20px 16px}h1{font-size:34px}
 }
+.wtop{display:flex;gap:16px;align-items:center}.wtop img{width:160px;aspect-ratio:16/9;object-fit:cover;border-radius:10px;background:var(--bg3);flex:none}
+.wtop .meta{min-width:0}.wtop .meta b{display:block;font-size:16px;color:var(--txt);font-weight:600;overflow-wrap:anywhere}.wtop .meta small{color:var(--mut)}
+.wbar{height:8px;background:var(--bg3);border-radius:99px;overflow:hidden;margin-top:10px}.wbar div{height:100%;background:linear-gradient(90deg,var(--gold),var(--gold2));transition:width .6s}
+.wgrid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.wgrid .card{margin:0;display:flex;flex-direction:column;min-width:0}
+.whead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.whead h2{margin:0}
+.wtext{white-space:pre-wrap;max-height:70vh;overflow:auto;color:var(--txt);font-size:14px;line-height:1.65;overflow-wrap:anywhere}
+.wsum h3{font-family:var(--serif);font-weight:400;font-size:20px;margin:16px 0 6px;color:var(--gold2)}.wsum h3:first-child{margin-top:0}.wsum ul{margin:0;padding-left:18px}.wsum li{margin:4px 0}.wsum p{margin:4px 0}
+.wsum{max-height:70vh;overflow:auto}
+.whist{display:grid;gap:10px}.whist .it{display:flex;gap:12px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:12px;cursor:pointer;background:var(--bg)}.whist .it:hover{border-color:var(--gold)}
+.whist img{width:96px;aspect-ratio:16/9;object-fit:cover;border-radius:8px;background:var(--bg3);flex:none}.whist .t{flex:1;min-width:0}.whist .t b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.whist .t small{color:var(--mut)}
+.wform{display:flex;gap:10px;flex-wrap:wrap}.wform input{flex:1;min-width:220px}
+.werr{color:var(--bad);margin-top:10px}
+@media (max-width:900px){.wgrid{grid-template-columns:1fr}.wtop img{width:110px}}
 </style>
 </head>
 <body>
@@ -126,7 +139,8 @@ const NAVG = [
   ['Sales', [['convos','Conversations'],['bookings','Sales calls'],['results','Call results']]],
   ['Communication', [['voice','AI caller & dialer'],['closer','AI texter (closer)'],['pricing','Pricing & offers'],['test','Test chat']]],
   ['Clients', [['clients','Clients'],['reviews','Testimonials']]],
-  ['Money', [['expenses','Expenses']]]];
+  ['Money', [['expenses','Expenses']]],
+  ['Tools', [['watch','Video watcher']]]];
 const TABS = NAVG.flatMap(g => g[1]);
 let AUTH = null, STATE = null, TAB = 'overview', DRAFT = null, SEL = null, DIRTY = false;
 const $ = s => document.querySelector(s);
@@ -159,7 +173,7 @@ function nav(){
   $('#nav').innerHTML = h; $('#mnav').innerHTML = h;
   document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { TAB = b.dataset.t; render(); });
 }
-function render(){ nav(); const f = { overview, insights, expenses, convos, closer, pricing, reviews, bookings, results, clients, voice, test }[TAB]; $('#main').innerHTML = f(); bind(); }
+function render(){ nav(); const f = { overview, insights, expenses, convos, closer, pricing, reviews, bookings, results, clients, voice, test, watch }[TAB]; $('#main').innerHTML = f(); bind(); }
 
 function dialToday(){
   const d = DSTATS || {}, t = d.today || {}, o = (d.outcomes || {})[t.date] || {};
@@ -669,6 +683,100 @@ function voice(){
   ${savebar()}`;
 }
 
+/* ---------- video watcher (runs on the voice server, same login as this dashboard) ---------- */
+const WATCH = 'https://oneweb-voice-production.up.railway.app/watch';
+let WJ = null, WLIST = null, WHIST = false, WTIMER = null, WMSG = '';
+try { WJ = { id: localStorage.getItem('ow_wjob') || '' }; if (!WJ.id) WJ = null; } catch (e) {}
+async function wcall(path, opt = {}) {
+  const r = await fetch(WATCH + path, Object.assign({ headers: Object.assign({ 'Authorization': 'Basic ' + AUTH }, opt.json ? { 'Content-Type': 'application/json' } : {}) }, opt));
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || !j.ok) throw new Error(j.error === 'auth' ? 'Your login was not accepted. Sign out and back in.' : (j.error || 'Server error ' + r.status));
+  return j;
+}
+const wdur = s => { s = Math.round(s || 0); if (!s) return ''; const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
+function wsum(t) {   // "## Heading" and "- bullet" -> html (everything escaped)
+  let h = '', inl = false;
+  for (const raw of String(t || '').split('\n')) {
+    const l = raw.trim(); if (!l) continue;
+    if (/^#{1,4}\s/.test(l)) { if (inl) { h += '</ul>'; inl = false; } h += '<h3>' + esc(l.replace(/^#+\s*/, '')) + '</h3>'; }
+    else if (/^[-*•]\s/.test(l)) { if (!inl) { h += '<ul>'; inl = true; } h += '<li>' + esc(l.replace(/^[-*•]\s*/, '').replace(/\*\*/g, '')) + '</li>'; }
+    else { if (inl) { h += '</ul>'; inl = false; } h += '<p>' + esc(l.replace(/\*\*/g, '')) + '</p>'; }
+  }
+  return h + (inl ? '</ul>' : '');
+}
+function watch(){
+  return `<h1>Video watcher</h1><p class="sub">Paste any video link. The AI watches it, writes the full transcript and sums it up.</p>
+  <div class="card"><form class="wform" id="wform"><input type="text" id="wurl" placeholder="Paste a YouTube, Instagram, TikTok, X or .mp4 link" autocomplete="off">
+  <button class="btn btn-gold" type="submit">Watch</button>
+  <button class="btn btn-line" type="button" id="wup">Upload a video file</button><input type="file" id="wfile" accept="video/*,audio/*" style="display:none">
+  <button class="btn btn-line" type="button" id="whist">${WHIST ? 'Close history' : 'History'}</button></form>
+  <div class="werr" id="wmsg">${esc(WMSG)}</div></div>
+  <div id="wbox">${wbox()}</div>`;
+}
+function wbox(){
+  if (WHIST) {
+    if (!WLIST) return '<div class="card" style="color:var(--mut)">Loading your videos…</div>';
+    if (!WLIST.length) return '<div class="card" style="color:var(--mut)">No videos watched yet.</div>';
+    return '<div class="card"><h2>Videos your AI watched</h2><div class="whist">' + WLIST.map(x => `<div class="it" data-wopen="${esc(x.id)}">
+      ${x.thumb ? `<img src="${esc(x.thumb)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '<img alt="">'}
+      <div class="t"><b>${esc(x.title || x.url || 'Video')}</b><small>${[x.site, wdur(x.dur), new Date((x.created || 0) * 1000).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }),
+      x.status === 'done' ? '' : x.status === 'error' ? 'Failed' : 'Watching… ' + (x.progress || 0) + '%'].filter(Boolean).map(esc).join(' · ')}</small></div>
+      <button class="btn btn-line btn-sm" data-wdel="${esc(x.id)}" title="Remove from history">Remove</button></div>`).join('') + '</div></div>';
+  }
+  const j = WJ && WJ.status ? WJ : null;
+  if (!j) return WJ ? '<div class="card" style="color:var(--mut)">Loading…</div>' : '';
+  const busy = j.status !== 'done' && j.status !== 'error';
+  const top = `<div class="card"><div style="font-size:12px;color:var(--mut);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px">${busy ? 'Watching now' : j.status === 'error' ? "Couldn't watch" : 'Watched'}</div>
+    <div class="wtop">${j.thumb ? `<img src="${esc(j.thumb)}" alt="" referrerpolicy="no-referrer">` : ''}<div class="meta"><b>${esc(j.title || j.url || 'Video')}</b>
+    <small>${[j.uploader, j.site, wdur(j.dur)].filter(Boolean).map(esc).join(' · ')}</small>
+    ${j.url ? `<div><a href="${esc(j.url)}" target="_blank" rel="noopener" style="color:var(--gold);font-size:13px">Open the video</a></div>` : ''}</div></div>
+    ${busy ? `<div class="wbar"><div style="width:${j.progress || 2}%"></div></div><div style="color:var(--mut);font-size:13px;margin-top:6px">${esc(j.stage || 'Working')}… ${j.progress || 0}%</div>` : ''}
+    ${j.status === 'error' ? `<div class="werr">${esc(j.error || 'Something went wrong.')}</div>` : ''}</div>`;
+  if (j.status !== 'done') return top;
+  return top + `<div class="wgrid">
+    <div class="card"><div class="whead"><h2>Full transcript</h2><button class="btn btn-line btn-sm" data-wcopy="transcript">Copy</button></div><div class="wtext">${esc(j.transcript)}</div></div>
+    <div class="card"><div class="whead"><h2>Summary</h2><button class="btn btn-line btn-sm" data-wcopy="summary">Copy</button></div><div class="wsum">${wsum(j.summary)}</div></div></div>`;
+}
+function wdraw(){ const b = document.getElementById('wbox'); if (b) { b.innerHTML = wbox(); bindWbox(); } const m = document.getElementById('wmsg'); if (m) m.textContent = WMSG; const h = document.getElementById('whist'); if (h) h.textContent = WHIST ? 'Close history' : 'History'; }
+async function wopen(id){
+  WHIST = false; WMSG = ''; WJ = { id }; try { localStorage.setItem('ow_wjob', id); } catch (e) {}
+  wdraw(); await wpoll();
+}
+async function wpoll(){
+  clearTimeout(WTIMER);
+  if (!WJ || !WJ.id || TAB !== 'watch') return;
+  try { const r = await wcall('/' + encodeURIComponent(WJ.id)); WJ = r.job; }
+  catch (e) { if (/not found/.test(e.message)) { WJ = null; try { localStorage.removeItem('ow_wjob'); } catch (x) {} } else WMSG = e.message; }
+  if (!WHIST) wdraw();
+  if (WJ && WJ.status && WJ.status !== 'done' && WJ.status !== 'error') WTIMER = setTimeout(wpoll, 2500);
+}
+async function wloadList(){ try { WLIST = (await wcall('/list')).items || []; } catch (e) { WLIST = []; WMSG = e.message; } wdraw(); }
+function bindWbox(){
+  document.querySelectorAll('[data-wopen]').forEach(el => el.onclick = e => { if (e.target.closest('[data-wdel]')) return; wopen(el.dataset.wopen); });
+  document.querySelectorAll('[data-wdel]').forEach(el => el.onclick = async e => { e.stopPropagation(); if (!confirm('Remove this video from your history?')) return;
+    try { await wcall('/' + encodeURIComponent(el.dataset.wdel), { method: 'DELETE' }); WLIST = WLIST.filter(x => x.id !== el.dataset.wdel); if (WJ && WJ.id === el.dataset.wdel) { WJ = null; try { localStorage.removeItem('ow_wjob'); } catch (x) {} } } catch (x) { WMSG = x.message; } wdraw(); });
+  document.querySelectorAll('[data-wcopy]').forEach(el => el.onclick = async () => { const t = WJ && WJ[el.dataset.wcopy] || '';
+    try { await navigator.clipboard.writeText(t); el.textContent = 'Copied'; } catch (e) { el.textContent = "Couldn't copy"; } setTimeout(() => { el.textContent = 'Copy'; }, 1500); });
+}
+function bindWatch(){
+  bindWbox();
+  const f = document.getElementById('wform'); if (!f) return;
+  f.onsubmit = async e => { e.preventDefault(); const u = document.getElementById('wurl').value.trim(); if (!u) return;
+    WMSG = ''; wdraw(); const btn = f.querySelector('[type=submit]'); btn.disabled = true;
+    try { const r = await wcall('', { method: 'POST', json: true, body: JSON.stringify({ url: u }) }); document.getElementById('wurl').value = ''; await wopen(r.id); }
+    catch (x) { WMSG = x.message; wdraw(); } btn.disabled = false; };
+  document.getElementById('wup').onclick = () => document.getElementById('wfile').click();
+  document.getElementById('wfile').onchange = async ev => { const file = ev.target.files[0]; if (!file) return;
+    if (file.size > 1024 * 1024 * 1024) { WMSG = 'That file is over 1 GB.'; wdraw(); return; }
+    WMSG = 'Uploading ' + file.name + '…'; wdraw();
+    try { const fd = new FormData(); fd.append('file', file, file.name);
+      const r = await fetch(WATCH + '/upload', { method: 'POST', headers: { 'Authorization': 'Basic ' + AUTH }, body: fd }); const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.ok) throw new Error(j.error || 'Upload failed (' + r.status + ')'); WMSG = ''; await wopen(j.id); }
+    catch (x) { WMSG = x.message; wdraw(); } ev.target.value = ''; };
+  document.getElementById('whist').onclick = () => { WHIST = !WHIST; WMSG = ''; if (WHIST) { WLIST = null; wloadList(); } wdraw(); if (!WHIST) wpoll(); };
+  if (WJ && !WHIST && (!WJ.status || (WJ.status !== 'done' && WJ.status !== 'error'))) wpoll();
+}
+
 function test(){
   const c = STATE.convos.find(x => x.phone === '+15550000001');
   return `<h1>Test Chat</h1><p class="sub">Text the closer as if you were a lead. Uses your saved settings. Nothing is sent by SMS.</p>
@@ -866,7 +974,7 @@ function markDirty(){ DIRTY = true; const m = $('#savemsg'); if (m) m.textConten
 function ladderPreview(){ const el = $('#ladder'); if (!el) return; const s = DRAFT; const steps = [s.listPrice, s.commitPrice].concat(s.discountSteps||[]).filter(n => n >= s.floorPrice); el.textContent = steps.map(n => '$'+n).join(' → ') + `  (floor $${s.floorPrice})`; }
 
 function bind(){
-  bindActivity(); bindInsights(); if (TAB === 'expenses') bindExpenses();
+  bindActivity(); bindInsights(); if (TAB === 'expenses') bindExpenses(); if (TAB === 'watch') bindWatch();
   document.querySelectorAll('[data-k]').forEach(el => el.oninput = el.onchange = () => {
     const k = el.dataset.k; let v = el.type === 'checkbox' ? el.checked : el.value;
     if ('num' in el.dataset) v = Number(v);
@@ -944,7 +1052,7 @@ $('#lbtn').onclick = async () => {
 };
 $('#lp').onkeydown = e => { if (e.key === 'Enter') $('#lbtn').click(); };
 $('#logout').onclick = logout;
-setInterval(() => { if (AUTH && !DIRTY && TAB !== 'test' && document.visibilityState === 'visible') load().catch(()=>{}); }, 30000);
+setInterval(() => { if (AUTH && !DIRTY && TAB !== 'test' && TAB !== 'watch' && document.visibilityState === 'visible') load().catch(()=>{}); }, 30000);
 start();
 </script>
 </body>
