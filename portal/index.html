@@ -582,6 +582,7 @@ async function demoApi(b) {
     case 'domain': { const d = String(b.domain || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, ''); if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(d)) return { ok: false }; DD.domain = d; return demoMe(); }
     case 'billing': return { url: '' };
     case 'rx_get': case 'rx_save': case 'rx_undo': case 'rx_usage': case 'rx_num_req': return demoRx(b);
+    case 'gcal_connect': case 'gcal_off': return { ok: false, error: 'Not available in the sample portal.' };
     case 'confirm_info': DD.confirmed = true; return demoMe();
     case 'cancel_start': DD.offerUntil = DD.offerUntil || Date.now() + 48 * 36e5; return { ok: true, offerUntil: DD.offerUntil };
     case 'cancel_offer': return { ok: true, accepted: true };
@@ -654,6 +655,11 @@ function agents() {
     <div id="blist">${(R.blocks || []).length ? R.blocks.map((b, i) => `<div class="toggle"><span>${esc(fmtDay(b.from))}${b.to !== b.from ? ' – ' + esc(fmtDay(b.to)) : ''}<small>${esc(b.note || '')}${b.src === 'phone' ? ' · set by phone' : ''}</small></span><button type="button" class="btn btn-line btn-sm" data-rmb="${i}">Remove</button></div>`).join('') : '<p class="note">No days off coming up.</p>'}</div>
     <form id="bf" class="row" style="margin-top:12px;align-items:end"><label>From<input type="date" name="from" required></label><label>To<input type="date" name="to"></label><label style="grid-column:1/-1">Note <span class="note">(only you see this)</span><input name="note" maxlength="60" placeholder="Vacation"></label><button class="btn btn-gold" type="submit">Add days off</button></form></div>
 
+  <div class="card"><h2>Google Calendar</h2>${R.gcal === 'on' ? `<p class="note" style="margin-top:-6px">Connected. New bookings show up on your Google Calendar within a couple of minutes, and times you're busy there are never offered to callers.</p><button class="btn btn-line btn-sm" type="button" id="gcoff">Disconnect</button>`
+    : R.gcal === 'reconnect' ? `<p class="note" style="margin-top:-6px">Google stopped letting us see your calendar (access was removed or expired). Reconnect so bookings keep showing up there.</p><button class="btn btn-gold" type="button" id="gcon">Reconnect Google Calendar</button>`
+    : R.gcalReady === false ? `<p class="note" style="margin-top:-6px">Coming soon: bookings straight onto your Google Calendar. Until then, every booking text has a one-tap "Add to your calendar" link.</p>`
+    : `<p class="note" style="margin-top:-6px">Put every booking on your Google Calendar automatically, and she'll never offer a time you're already busy.</p><button class="btn btn-gold" type="button" id="gcon">Connect Google Calendar</button>`}</div>
+
   <div class="card"><h2>Extra minutes</h2>${u && u.consent ? `<p class="note" style="margin-top:-6px">If you go past your ${m.included} included minutes, extra minutes are $0.08 each, charged to your ${u.card === 'new' ? 'other' : 'plan'} card, never more than <b>$${u.cap}</b> a month. We text you at 80%.</p><button class="btn btn-line btn-sm" type="button" id="uoff">Turn off extra minutes</button>`
     : `<p class="note" style="margin-top:-6px">Your plan includes ${m.included} minutes a month. If you run out, she'll only take quick messages until next month. Paying for extra minutes is coming soon.</p>`}</div>
 
@@ -722,6 +728,8 @@ function bindAgents() {
       try { await rxApi({ op: 'rx_usage', usage: { consent: true, card, cap: Number($('#ucap').value) } });
         if (card === 'new') { const r = await api({ op: 'billing' }); if (r.url) { location.href = r.url; return; } } render(); } catch (e) {} };
   };
+  const gc = $('#gcon'); if (gc) gc.onclick = async () => { gc.disabled = true; try { const r = await api({ op: 'gcal_connect' }); if (r && r.url) location.href = r.url; else { alert((r && r.error) || 'Could not start Google sign-in.'); gc.disabled = false; } } catch (e) { gc.disabled = false; } };
+  const gx = $('#gcoff'); if (gx) gx.onclick = async () => { if (!confirm('Disconnect Google Calendar? Bookings will stop showing up there.')) return; try { await api({ op: 'gcal_off' }); await rxApi({ op: 'rx_get' }); render(); } catch (e) {} };
   const uo = $('#uoff'); if (uo) uo.onclick = async () => { if (!confirm('Turn off extra minutes? Once you use your included minutes, she\'ll only take quick messages until next month.')) return; try { await rxApi({ op: 'rx_usage', usage: { consent: false } }); render(); } catch (e) {} };
 }
 function bindCoach() {
