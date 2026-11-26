@@ -642,6 +642,8 @@ function agents() {
     <label>Also urgent for you<input name="urgentWords" value="${esc(R.urgentWords)}" placeholder="e.g. no hot water, sewage backup"></label>
     <label>After hours<select name="afterHours"><option value="book" ${R.afterHours !== 'message' ? 'selected' : ''}>Book the next open time</option><option value="message" ${R.afterHours === 'message' ? 'selected' : ''}>Take a message for me</option></select></label>
     <label>When she tells callers who will follow up<select name="followUp"><option value="team" ${R.followUp !== 'owner' ? 'selected' : ''}>"Our team will reach out"</option><option value="owner" ${R.followUp === 'owner' ? 'selected' : ''}>"The owner will reach out"</option></select></label>
+    <label>Longest call she'll take<select name="maxCallMins">${[[5, '5 minutes'], [10, '10 minutes (recommended)'], [15, '15 minutes'], [20, '20 minutes'], [30, '30 minutes'], [0, 'No limit']].map(([v, t]) => `<option value="${v}" ${Number(R.maxCallMins ?? 10) === v ? 'selected' : ''}>${t}</option>`).join('')}</select>
+      <span class="note" style="display:block;margin-top:6px">When a call hits this, she politely wraps up and offers to take a message. Longer limits use more of your monthly minutes: pranksters and sales callers will happily keep an AI talking, and with no limit one of them can eat a big chunk of your minutes in a single call.</span></label>
     <div class="row"><label>Send urgent calls to <span class="note">(transfer)</span><input name="transfer" type="tel" value="${esc(fmtPhone(R.transfer))}" placeholder="(555) 123-4567"></label>
       <label>Your cell <span class="note">(alerts + owner calls)</span><input name="ownerPhone" type="tel" value="${esc(fmtPhone(R.ownerPhone))}" placeholder="(555) 123-4567"></label></div>
     <label>Owner PIN <span class="note">${R.hasPin ? '(set; type a new one to change it)' : '(4–6 digits; needed to change your schedule by phone)'}</span><input name="pin" inputmode="numeric" autocomplete="off" maxlength="6" placeholder="${R.hasPin ? '••••' : 'Pick a PIN'}"></label>
@@ -653,8 +655,7 @@ function agents() {
     <form id="bf" class="row" style="margin-top:12px;align-items:end"><label>From<input type="date" name="from" required></label><label>To<input type="date" name="to"></label><label style="grid-column:1/-1">Note <span class="note">(only you see this)</span><input name="note" maxlength="60" placeholder="Vacation"></label><button class="btn btn-gold" type="submit">Add days off</button></form></div>
 
   <div class="card"><h2>Extra minutes</h2>${u && u.consent ? `<p class="note" style="margin-top:-6px">If you go past your ${m.included} included minutes, extra minutes are $0.08 each, charged to your ${u.card === 'new' ? 'other' : 'plan'} card, never more than <b>$${u.cap}</b> a month. We text you at 80%.</p><button class="btn btn-line btn-sm" type="button" id="uoff">Turn off extra minutes</button>`
-    : `<p class="note" style="margin-top:-6px">Your plan includes ${m.included} minutes a month. If you run out, she'll only take quick messages until next month. Want her to keep answering normally instead?</p>
-    <div id="uflow"><button class="btn btn-gold" type="button" id="uyes">Allow extra minutes</button></div>`}</div>
+    : `<p class="note" style="margin-top:-6px">Your plan includes ${m.included} minutes a month. If you run out, she'll only take quick messages until next month. Paying for extra minutes is coming soon.</p>`}</div>
 
   <h2 style="margin:28px 0 10px">Recent calls</h2>${(R.calls || []).length ? R.calls.map(call).join('') : '<div class="card"><p class="note">No calls yet.</p></div>'}
   ${(R.msgs || []).length ? `<h2 style="margin:28px 0 10px">Messages</h2>${R.msgs.map(x => `<div class="card" style="padding:14px 16px"><b>${x.urgent ? '🚨 ' : ''}${esc(x.name || 'Caller')}</b> <span class="note">· ${esc(fmtPhone(x.phone))} · ${new Date(x.at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span><p style="margin:6px 0 0">${esc(x.msg)}</p></div>`).join('')}` : ''}`;
@@ -701,7 +702,7 @@ function bindAgents() {
   $('#rxf').onsubmit = async e => { e.preventDefault(); const F = e.target, m = $('#smsg');
     const pin = F.pin.value.trim(); if (pin && !/^\d{4,6}$/.test(pin)) { say(m, 'The PIN needs to be 4 to 6 digits.'); return; }
     const fields = { agent: F.agent.value, jobMins: Number(F.jobMins.value), greet: F.greet.value, faq: F.faq.value, style: F.style.value, urgentWords: F.urgentWords.value,
-      afterHours: F.afterHours.value, followUp: F.followUp.value, transfer: F.transfer.value, ownerPhone: F.ownerPhone.value }; if (pin) fields.pin = pin;
+      afterHours: F.afterHours.value, followUp: F.followUp.value, maxCallMins: F.maxCallMins.value, transfer: F.transfer.value, ownerPhone: F.ownerPhone.value }; if (pin) fields.pin = pin;
     m.className = 'msg'; m.textContent = 'Saving…';
     try { await rxApi({ op: 'rx_save', fields }); render(); say($('#smsg'), 'Saved. Her next call uses these settings.', true); } catch (err) { if (err.message !== 'auth') say(m, 'Could not save. Try again.'); } };
   document.querySelectorAll('[data-rmb]').forEach(b => b.onclick = async () => { const bl = RX.blocks.slice(); bl.splice(Number(b.dataset.rmb), 1); try { await rxApi({ op: 'rx_save', fields: { blocks: bl } }); render(); } catch (e) {} });
