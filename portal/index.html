@@ -652,7 +652,7 @@ function agents() {
     <div id="blist">${(R.blocks || []).length ? R.blocks.map((b, i) => `<div class="toggle"><span>${esc(fmtDay(b.from))}${b.to !== b.from ? ' – ' + esc(fmtDay(b.to)) : ''}<small>${esc(b.note || '')}${b.src === 'phone' ? ' · set by phone' : ''}</small></span><button type="button" class="btn btn-line btn-sm" data-rmb="${i}">Remove</button></div>`).join('') : '<p class="note">No days off coming up.</p>'}</div>
     <form id="bf" class="row" style="margin-top:12px;align-items:end"><label>From<input type="date" name="from" required></label><label>To<input type="date" name="to"></label><label style="grid-column:1/-1">Note <span class="note">(only you see this)</span><input name="note" maxlength="60" placeholder="Vacation"></label><button class="btn btn-gold" type="submit">Add days off</button></form></div>
 
-  <div class="card"><h2>Extra minutes</h2>${u && u.consent ? `<p class="note" style="margin-top:-6px">If you go past your ${m.included} included minutes, extra minutes are $0.25 each, charged to your ${u.card === 'new' ? 'other' : 'plan'} card, never more than <b>$${u.cap}</b> a month. We text you at 80%.</p><button class="btn btn-line btn-sm" type="button" id="uoff">Turn off extra minutes</button>`
+  <div class="card"><h2>Extra minutes</h2>${u && u.consent ? `<p class="note" style="margin-top:-6px">If you go past your ${m.included} included minutes, extra minutes are $0.15 each, charged to your ${u.card === 'new' ? 'other' : 'plan'} card, never more than <b>$${u.cap}</b> a month. We text you at 80%.</p><button class="btn btn-line btn-sm" type="button" id="uoff">Turn off extra minutes</button>`
     : `<p class="note" style="margin-top:-6px">Your plan includes ${m.included} minutes a month. If you run out, she'll only take quick messages until next month. Want her to keep answering normally instead?</p>
     <div id="uflow"><button class="btn btn-gold" type="button" id="uyes">Allow extra minutes</button></div>`}</div>
 
@@ -713,7 +713,7 @@ function bindAgents() {
       <label class="toggle" style="cursor:pointer"><span>Yes, use the same card</span><input type="radio" name="ucard" value="same" checked></label>
       <label class="toggle" style="cursor:pointer"><span>Use a different card<small>We'll open your secure billing page to add it</small></span><input type="radio" name="ucard" value="new"></label>
       <label style="margin-top:10px">Never charge me more than<select id="ucap">${[10, 25, 50, 100, 200].map(x => `<option value="${x}" ${x === 25 ? 'selected' : ''}>$${x} a month</option>`).join('')}</select></label>
-      <label class="toggle" style="margin-top:10px;cursor:pointer"><span style="font-weight:400;font-size:14px">I allow One Web to charge $0.25 per extra minute, up to my monthly limit. I can turn this off any time.</span><input type="checkbox" id="uok"></label>
+      <label class="toggle" style="margin-top:10px;cursor:pointer"><span style="font-weight:400;font-size:14px">I allow One Web to charge $0.15 per extra minute, up to my monthly limit. I can turn this off any time.</span><input type="checkbox" id="uok"></label>
       <div class="bkact"><button class="btn btn-gold" type="button" id="usave">Allow extra minutes</button><button class="btn btn-line" type="button" id="uno">Not now</button></div><p class="msg" id="umsg"></p>`;
     $('#uno').onclick = () => render();
     $('#usave').onclick = async () => { if (!$('#uok').checked) { say($('#umsg'), 'Tick the box to agree first.'); return; }
