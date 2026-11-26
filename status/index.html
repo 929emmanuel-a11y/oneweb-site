@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>System Status · One Web</title>
+<meta name="description" content="Live status of One Web websites, AI receptionists, client portal and payments.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0a0a;--bg2:#131312;--line:rgba(237,232,224,.12);--txt:#ede8e0;--mut:#9b958c;--gold:#c9a86a;--ok:#7fbf8e;--warn:#e0b45a;--bad:#e25b4b;
+--serif:"Instrument Serif",Georgia,serif;--sans:"Inter",system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.55 var(--sans);-webkit-font-smoothing:antialiased}
+.wrap{max-width:720px;margin:0 auto;padding:28px 16px 60px}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:34px}
+.brand{font-family:var(--serif);font-size:24px;color:var(--txt);text-decoration:none}
+.top a.b{color:var(--mut);font-size:14px;text-decoration:none}
+h1{font-family:var(--serif);font-weight:400;font-size:44px;line-height:1.1;margin:0 0 10px}
+.sum{display:flex;align-items:center;gap:12px;background:var(--bg2);border:1px solid var(--line);border-radius:16px;padding:18px 20px;margin:22px 0 26px;font-weight:600}
+.dot{width:12px;height:12px;border-radius:50%;background:var(--mut);flex:none;box-shadow:0 0 0 4px rgba(155,149,140,.12)}
+.ok .dot{background:var(--ok);box-shadow:0 0 0 4px rgba(127,191,142,.15)}
+.warn .dot{background:var(--warn);box-shadow:0 0 0 4px rgba(224,180,90,.15)}
+.bad .dot{background:var(--bad);box-shadow:0 0 0 4px rgba(226,91,75,.15)}
+.list{border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.row{display:flex;align-items:center;gap:14px;padding:16px 20px;border-top:1px solid var(--line);background:var(--bg2)}
+.row:first-child{border-top:0}
+.row b{display:block;font-weight:600}
+.row small{color:var(--mut);font-size:13.5px}
+.row .st{margin-left:auto;font-size:14px;color:var(--mut);white-space:nowrap}
+.ok .st{color:var(--ok)}.warn .st{color:var(--warn)}.bad .st{color:var(--bad)}
+.note{color:var(--mut);font-size:14px;margin-top:22px}
+.note a{color:var(--gold)}
+@media (max-width:520px){h1{font-size:36px}.row{flex-wrap:wrap}.row .st{margin-left:26px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><a class="brand" href="/">One Web</a><a class="b" href="/portal/">Client portal →</a></div>
+  <h1>System status</h1>
+  <div style="color:var(--mut)">Live checks of everything your business runs on with us.</div>
+  <div class="sum" id="sum"><span class="dot"></span><span id="sumTxt">Checking…</span></div>
+  <div class="list">
+    <div class="row" id="c-sites"><span class="dot"></span><div><b>Websites</b><small>Your site and its booking form</small></div><span class="st">Checking…</span></div>
+    <div class="row" id="c-rx"><span class="dot"></span><div><b>AI receptionist</b><small>Answering and booking calls</small></div><span class="st">Checking…</span></div>
+    <div class="row" id="c-auto"><span class="dot"></span><div><b>Client portal &amp; automations</b><small>Bookings, messages, texts and updates</small></div><span class="st">Checking…</span></div>
+    <div class="row" id="c-pay"><span class="dot"></span><div><b>Payments</b><small>Secure checkout by Stripe</small></div><span class="st">Checking…</span></div>
+  </div>
+  <p class="note">Checked <span id="when">just now</span>, and again every minute while this page is open. Something not working? Text or email us at <a href="mailto:hello@onewebonline.com">hello@onewebonline.com</a>.</p>
+</div>
+<script>
+const N8N = 'https://n8n-production-9be3db1c.up.railway.app/webhook/';
+const VOICE = 'https://oneweb-voice-production.up.railway.app/';
+const timed = (p, ms) => Promise.race([p, new Promise((_, r) => setTimeout(() => r(new Error('timeout')), ms))]);
+async function probe(fn, ms) { const t = performance.now(); try { await timed(fn(), ms); return { up: true, slow: performance.now() - t > ms / 2 }; } catch (e) { return { up: false }; } }
+function set(id, r, upTxt) {
+  const el = document.getElementById(id);
+  el.className = 'row ' + (!r.up ? 'bad' : r.slow ? 'warn' : 'ok');
+  el.querySelector('.st').textContent = !r.up ? 'Having trouble' : r.slow ? 'Slow right now' : upTxt;
+  return el.className.split(' ')[1];
+}
+async function check() {
+  const [sites, rx, auto, pay] = await Promise.all([
+    probe(() => fetch('/robots.txt?' + Date.now(), { cache: 'no-store' }).then(r => { if (!r.ok) throw 0; }), 6000),
+    probe(() => fetch(VOICE + '?' + Date.now(), { mode: 'no-cors', cache: 'no-store' }), 8000),
+    probe(() => fetch(N8N + 'oneweb-present-state?s=status-check', { cache: 'no-store' }).then(r => { if (!r.ok) throw 0; }), 8000),
+    probe(() => fetch('https://js.stripe.com/v3/', { mode: 'no-cors', cache: 'no-store' }), 8000),
+  ]);
+  const s = [set('c-sites', sites, 'Working'), set('c-rx', rx, 'Working'), set('c-auto', auto, 'Working'), set('c-pay', pay, 'Working')];
+  const worst = s.includes('bad') ? 'bad' : s.includes('warn') ? 'warn' : 'ok';
+  document.getElementById('sum').className = 'sum ' + worst;
+  document.getElementById('sumTxt').textContent = worst === 'ok' ? 'All systems working' : worst === 'warn' ? 'Everything is up, some parts are slow' : 'Some parts are having trouble. We are on it.';
+  document.getElementById('when').textContent = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+check(); setInterval(check, 60000);
+</script>
+</body>
+</html>
