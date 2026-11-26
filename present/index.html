@@ -64,6 +64,7 @@ h2{font-family:var(--serif);font-weight:400;font-size:26px;margin:0 0 4px;line-h
 .bars i:nth-child(2n){animation-delay:.15s}.bars i:nth-child(3n){animation-delay:.3s}
 @keyframes bar{0%,100%{height:5px;opacity:.45}50%{height:20px;opacity:1}}
 .plans{display:grid;gap:10px;margin-top:10px}
+.sk i{display:block;height:12px;margin:9px 0;border-radius:6px;background:rgba(237,232,224,.14)}.sk i.b{height:38px;width:100%;border-radius:99px;background:rgba(201,168,106,.35);margin-top:14px}
 .plan{border:1px solid var(--line);border-radius:14px;padding:14px;background:var(--bg)}
 .plan.open{animation:pop .5s ease-out}
 @keyframes pop{0%{transform:scale(.97)}60%{transform:scale(1.02)}100%{transform:none}}
@@ -113,9 +114,9 @@ h2{font-family:var(--serif);font-weight:400;font-size:26px;margin:0 0 4px;line-h
     </div></div>
     <div class="card" id="plansCard"><h2>Plans</h2><p class="note" id="pnote">Emma will go over these with you.</p>
       <div class="plans">
-        <div class="plan locked" data-p="own"><div class="soon">•••</div><div class="inner"><h3>Website</h3><div class="price">$<span data-price="own">250</span><s>$289</s></div><ul><li>Your site, yours to keep</li><li>Price if you go ahead today</li></ul><button class="pick" data-pick="own">Choose this</button></div></div>
-        <div class="plan locked" data-p="hosted"><div class="soon">•••</div><div class="inner"><h3>Website + hosting <span class="tag">30 days free</span></h3><div class="price">$<span data-price="hosted">229</span><span class="mo">+ $39/mo</span></div><ul><li>We host it and keep it running</li><li>Updates, security, changes by text</li></ul><button class="pick" data-pick="hosted">Choose this</button></div></div>
-        <div class="plan locked" data-p="team"><div class="soon">•••</div><div class="inner"><h3>Website + hosting + AI team <span class="tag">30 days free</span></h3><div class="price">$<span data-price="team">199</span><span class="mo">+ $97/mo</span></div><ul><li>AI receptionist answers and books 24/7</li><li>Review requests and new Google pages monthly</li><li>Chat on your site</li></ul><button class="pick" data-pick="team">Choose this</button></div></div>
+        <div class="plan locked" data-p="own"><div class="soon">•••</div><div class="inner"><div class="sk" aria-hidden="true"><i style="width:38%"></i><i style="width:52%;height:28px"></i><i style="width:84%"></i><i style="width:66%"></i><i class="b"></i></div></div></div>
+        <div class="plan locked" data-p="hosted"><div class="soon">•••</div><div class="inner"><div class="sk" aria-hidden="true"><i style="width:38%"></i><i style="width:52%;height:28px"></i><i style="width:84%"></i><i style="width:66%"></i><i class="b"></i></div></div></div>
+        <div class="plan locked" data-p="team"><div class="soon">•••</div><div class="inner"><div class="sk" aria-hidden="true"><i style="width:38%"></i><i style="width:52%;height:28px"></i><i style="width:84%"></i><i style="width:66%"></i><i class="b"></i></div></div></div>
       </div>
       <p class="msg" id="pmsg" role="status" aria-live="polite"></p>
     </div>
@@ -138,6 +139,16 @@ let LEAD = null, KEY = 'plumbing', lastSeq = -1, hello = 1, lastShow = '';
 // Nothing on this page reveals itself: only Emma (on the call) reveals the samples and the plans, and they stay revealed for this business.
 // We never scroll their website for them (that would fake our scroll stats): Emma tells them where to look.
 const CAPS = { receptionist: 'Scroll down: your AI receptionist samples are below.', plans: 'Scroll down to see the plans.' };
+// Plan wording lives here; prices never do. The server only sends a plan's numbers after Emma reveals it.
+const PLAN = { own: { h: 'Website', feats: ['Your site, yours to keep', 'Price if you go ahead today'] },
+  hosted: { h: 'Website + hosting <span class="tag">30 days free</span>', feats: ['We host it and keep it running', 'Updates, security, changes by text'] },
+  team: { h: 'Website + hosting + AI team <span class="tag">30 days free</span>', feats: ['AI receptionist answers and books 24/7', 'Review requests and new Google pages monthly', 'Chat on your site'] } };
+const num = v => String(Math.round(Number(v) || 0));
+function fill(el, k, price, ex) {
+  const P = PLAN[k]; if (!P || !price) return false; ex = ex || {};
+  el.querySelector('.inner').innerHTML = `<h3>${P.h}</h3><div class="price">$<span data-price="${k}">${num(price)}</span>${ex.list ? `<s>$${num(ex.list)}</s>` : ''}${ex.mo ? `<span class="mo">+ $${num(ex.mo)}/mo</span>` : ''}</div><ul>${P.feats.map(f => `<li>${f}</li>`).join('')}</ul><button class="pick" data-pick="${k}">Choose this</button>`;
+  return true;
+}
 const open = el => { if (el && !el.classList.contains('open')) el.classList.add('open'); };
 const mobile = () => innerWidth <= 860;
 $('#more').onclick = () => $('#rx').scrollIntoView({ behavior: 'smooth', block: 'start' });   // our section below the site
@@ -145,7 +156,7 @@ const CLIP_LEN = { answering: 'about 25 seconds', booking: 'about 30 seconds' };
 function apply(d) {
   document.body.classList.toggle('meet', !!d.live);
   (d.clips || []).forEach(c => { const el = $('#c-' + c); if (el && !el.classList.contains('open')) { open(el); const sb = el.querySelector('.sub'); if (sb) sb.textContent = CLIP_LEN[c] || ''; } });
-  (d.reveal || []).forEach(p => { const el = document.querySelector(`.plan[data-p="${p}"]`); if (el && !el.classList.contains('open')) { open(el); $('#pnote').textContent = 'Tap the one you want, or just tell Emma.'; } });
+  (d.reveal || []).forEach(p => { const el = document.querySelector(`.plan[data-p="${p}"]`); if (el && !el.classList.contains('open') && fill(el, p, (d.prices || {})[p], (d.extra || {})[p])) { open(el); $('#pnote').textContent = 'Tap the one you want, or just tell Emma.'; } });
   Object.entries(d.prices || {}).forEach(([k, v]) => { const el = document.querySelector(`[data-price="${k}"]`); if (el) el.textContent = v; });
   document.querySelectorAll('.clip').forEach(c => c.classList.toggle('oncall', !!d.live && c.id === 'c-' + d.clip));
   if (d.picked) $('#pmsg').textContent = 'Payment link sent to your phone.';
@@ -186,7 +197,7 @@ document.querySelectorAll('.pbtn').forEach(b => b.onclick = () => { const c = b.
   au.src = tries[0]; au.play().catch(() => {}); });
 au.onplay = () => { document.querySelectorAll('.clip').forEach(x => x.classList.toggle('playing', x.id === 'c-' + cur)); const b = document.querySelector('#c-' + cur + ' .pbtn'); if (b) b.textContent = '❚❚'; };
 au.onpause = au.onended = () => { document.querySelectorAll('.clip').forEach(x => x.classList.remove('playing')); document.querySelectorAll('.pbtn').forEach(x => x.textContent = '▶'); };
-document.querySelectorAll('[data-pick]').forEach(b => b.onclick = async () => {
+document.querySelector('.plans').addEventListener('click', async ev => { const b = ev.target.closest('[data-pick]'); if (!b || b.disabled) return;
   const m = $('#pmsg'); b.disabled = true; m.style.color = ''; m.textContent = 'Sending your secure payment link…';
   try { const r = await fetch(N8N + 'oneweb-present-pick', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ s: slug, plan: b.dataset.pick }) }).then(r => r.json());
     if (r.ok) m.textContent = 'Done. Your secure payment link is in your texts.'; else { m.style.color = '#e08a7a'; m.textContent = r.error === 'not yet' ? 'One sec, Emma is still going over this one.' : (r.error || 'Reply to our text and we\'ll send your payment link.'); b.disabled = false; } }
