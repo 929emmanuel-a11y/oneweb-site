@@ -92,6 +92,16 @@ textarea{min-height:90px;resize:vertical}
 .whist img{width:96px;aspect-ratio:16/9;object-fit:cover;border-radius:8px;background:var(--bg3);flex:none}.whist .t{flex:1;min-width:0}.whist .t b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.whist .t small{color:var(--mut)}
 .wform{display:flex;gap:10px;flex-wrap:wrap}.wform input{flex:1;min-width:220px}
 .werr{color:var(--bad);margin-top:10px}
+.wtg{display:flex;align-items:center;gap:8px;color:var(--mut);font-size:13px;margin-top:12px;cursor:pointer}
+.wfolders{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 16px}
+.wchip{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border:1px solid var(--line);border-radius:99px;background:var(--bg);color:var(--mut);cursor:pointer;font-size:13px;user-select:none}
+.wchip.on{border-color:var(--gold);color:var(--txt)}
+.wchip .n{opacity:.55;font-size:11px}
+.wchip .x{opacity:.45;padding:0 1px;font-size:12px}.wchip .x:hover{opacity:1;color:var(--gold)}
+.wchip.add{border-style:dashed;color:var(--gold)}
+.wmove{background:var(--bg);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:12px;max-width:150px;flex:none}
+.wacts{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:-4px 0 16px;color:var(--mut);font-size:13px}
+.wacts label{display:flex;gap:6px;align-items:center}
 @media (max-width:900px){.wgrid{grid-template-columns:1fr}.wtop img{width:110px}}
 </style>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -706,7 +716,8 @@ function bindTexting(){
 
 /* ---------- video watcher (runs on the voice server, same login as this dashboard) ---------- */
 const WATCH = 'https://oneweb-voice-production.up.railway.app/watch';
-let WJ = null, WLIST = null, WHIST = false, WTIMER = null, WMSG = '';
+let WJ = null, WLIST = null, WHIST = false, WTIMER = null, WMSG = '', WFOLDERS = [], WFOLDER = '';
+let WTG = true; try { WTG = localStorage.getItem('ow_wtg') !== '0'; } catch (e) {}
 try { WJ = { id: localStorage.getItem('ow_wjob') || '' }; if (!WJ.id) WJ = null; } catch (e) {}
 async function wcall(path, opt = {}) {
   const r = await fetch(WATCH + path, Object.assign({ headers: Object.assign({ 'Authorization': 'Basic ' + AUTH }, opt.json ? { 'Content-Type': 'application/json' } : {}) }, opt));
@@ -725,24 +736,36 @@ function wsum(t) {   // "## Heading" and "- bullet" -> html (everything escaped)
   }
   return h + (inl ? '</ul>' : '');
 }
+const wfolderOpts = cur => ['<option value="">No folder</option>'].concat(WFOLDERS.map(f => `<option value="${esc(f.id)}" ${(cur || '') === f.id ? 'selected' : ''}>${esc(f.name)}</option>`)).join('');
 function watch(){
   return `<h1>Video watcher</h1><p class="sub">Paste any video link. The AI watches it, writes the full transcript and sums it up.</p>
   <div class="card"><form class="wform" id="wform"><input type="text" id="wurl" placeholder="Paste a YouTube, Instagram, TikTok, X or .mp4 link" autocomplete="off">
   <button class="btn btn-gold" type="submit">Watch</button>
   <button class="btn btn-line" type="button" id="wup">Upload a video file</button><input type="file" id="wfile" accept="video/*,audio/*" style="display:none">
   <button class="btn btn-line" type="button" id="whist">${WHIST ? 'Close history' : 'History'}</button></form>
+  <label class="wtg"><input type="checkbox" id="wtg" ${WTG ? 'checked' : ''}> Send the transcript and summary to my Telegram when it's done</label>
   <div class="werr" id="wmsg">${esc(WMSG)}</div></div>
   <div id="wbox">${wbox()}</div>`;
+}
+function wfolderbar(){
+  const counts = {}; (WLIST || []).forEach(v => { const f = v.folder || ''; counts[f] = (counts[f] || 0) + 1; });
+  const chip = (id, name, count) => `<span class="wchip ${WFOLDER === id ? 'on' : ''}" data-wfolder="${esc(id)}">${esc(name)}<span class="n">${count || 0}</span>${id ? `<span class="x" data-wfren="${esc(id)}" title="Rename folder">✎</span><span class="x" data-wfdel="${esc(id)}" title="Delete folder">✕</span>` : ''}</span>`;
+  let s = '<div class="wfolders">' + chip('', 'All videos', (WLIST || []).length);
+  for (const f of WFOLDERS) s += chip(f.id, f.name, counts[f.id] || 0);
+  return s + '<span class="wchip add" id="wfnew">+ New folder</span></div>';
 }
 function wbox(){
   if (WHIST) {
     if (!WLIST) return '<div class="card" style="color:var(--mut)">Loading your videos…</div>';
-    if (!WLIST.length) return '<div class="card" style="color:var(--mut)">No videos watched yet.</div>';
-    return '<div class="card"><h2>Videos your AI watched</h2><div class="whist">' + WLIST.map(x => `<div class="it" data-wopen="${esc(x.id)}">
+    const list = WFOLDER ? WLIST.filter(x => (x.folder || '') === WFOLDER) : WLIST;
+    const rows = list.length ? list.map(x => `<div class="it" data-wopen="${esc(x.id)}">
       ${x.thumb ? `<img src="${esc(x.thumb)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '<img alt="">'}
       <div class="t"><b>${esc(x.title || x.url || 'Video')}</b><small>${[x.site, wdur(x.dur), new Date((x.created || 0) * 1000).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }),
       x.status === 'done' ? '' : x.status === 'error' ? 'Failed' : 'Watching… ' + (x.progress || 0) + '%'].filter(Boolean).map(esc).join(' · ')}</small></div>
-      <button class="btn btn-line btn-sm" data-wdel="${esc(x.id)}" title="Remove from history">Remove</button></div>`).join('') + '</div></div>';
+      <select class="wmove" data-wmove="${esc(x.id)}" title="Move to folder" onclick="event.stopPropagation()">${wfolderOpts(x.folder)}</select>
+      <button class="btn btn-line btn-sm" data-wdel="${esc(x.id)}" title="Delete video">Delete</button></div>`).join('')
+      : `<div style="color:var(--mut);padding:10px 2px">${WFOLDER ? 'No videos in this folder yet. Use the Folder menu on a video to move it here.' : 'No videos watched yet.'}</div>`;
+    return '<div class="card"><h2>Videos your AI watched</h2>' + wfolderbar() + '<div class="whist">' + rows + '</div></div>';
   }
   const j = WJ && WJ.status ? WJ : null;
   if (!j) return WJ ? '<div class="card" style="color:var(--mut)">Loading…</div>' : '';
@@ -754,7 +777,10 @@ function wbox(){
     ${busy ? `<div class="wbar"><div style="width:${j.progress || 2}%"></div></div><div style="color:var(--mut);font-size:13px;margin-top:6px">${esc(j.stage || 'Working')}… ${j.progress || 0}%</div>` : ''}
     ${j.status === 'error' ? `<div class="werr">${esc(j.error || 'Something went wrong.')}</div>` : ''}</div>`;
   if (j.status !== 'done') return top;
-  return top + `<div class="wgrid">
+  const acts = `<div class="wacts"><label>Folder <select class="wmove" data-wmove="${esc(j.id)}">${wfolderOpts(j.folder)}</select></label>
+    <button class="btn btn-line btn-sm" id="wtgbtn" data-wtgid="${esc(j.id)}">${j.tg_sent ? 'Send to Telegram again' : 'Send to Telegram'}</button>
+    <button class="btn btn-line btn-sm" data-wdel="${esc(j.id)}">Delete video</button></div>`;
+  return top + acts + `<div class="wgrid">
     <div class="card"><div class="whead"><h2>Full transcript</h2><button class="btn btn-line btn-sm" data-wcopy="transcript">Copy</button></div><div class="wtext">${esc(j.transcript)}</div></div>
     <div class="card"><div class="whead"><h2>Summary</h2><button class="btn btn-line btn-sm" data-wcopy="summary">Copy</button></div><div class="wsum">${wsum(j.summary)}</div></div></div>`;
 }
@@ -771,26 +797,47 @@ async function wpoll(){
   if (!WHIST) wdraw();
   if (WJ && WJ.status && WJ.status !== 'done' && WJ.status !== 'error') WTIMER = setTimeout(wpoll, 2500);
 }
-async function wloadList(){ try { WLIST = (await wcall('/list')).items || []; } catch (e) { WLIST = []; WMSG = e.message; } wdraw(); }
+async function wloadList(){
+  try { const [a, b] = await Promise.all([wcall('/list'), wcall('/folders').catch(() => null)]);
+    WLIST = a.items || []; if (b && b.folders) WFOLDERS = b.folders;
+  } catch (e) { WLIST = []; WMSG = e.message; } wdraw();
+}
+async function wloadFolders(){ try { const r = await wcall('/folders'); WFOLDERS = r.folders || []; } catch (e) {} }
 function bindWbox(){
-  document.querySelectorAll('[data-wopen]').forEach(el => el.onclick = e => { if (e.target.closest('[data-wdel]')) return; wopen(el.dataset.wopen); });
-  document.querySelectorAll('[data-wdel]').forEach(el => el.onclick = async e => { e.stopPropagation(); if (!confirm('Remove this video from your history?')) return;
-    try { await wcall('/' + encodeURIComponent(el.dataset.wdel), { method: 'DELETE' }); WLIST = WLIST.filter(x => x.id !== el.dataset.wdel); if (WJ && WJ.id === el.dataset.wdel) { WJ = null; try { localStorage.removeItem('ow_wjob'); } catch (x) {} } } catch (x) { WMSG = x.message; } wdraw(); });
+  document.querySelectorAll('[data-wopen]').forEach(el => el.onclick = e => { if (e.target.closest('[data-wdel],[data-wmove]')) return; wopen(el.dataset.wopen); });
+  document.querySelectorAll('[data-wdel]').forEach(el => el.onclick = async e => { e.stopPropagation(); if (!confirm('Delete this video and its transcript? This can\'t be undone.')) return;
+    try { await wcall('/' + encodeURIComponent(el.dataset.wdel), { method: 'DELETE' }); if (WLIST) WLIST = WLIST.filter(x => x.id !== el.dataset.wdel); if (WJ && WJ.id === el.dataset.wdel) { WJ = null; try { localStorage.removeItem('ow_wjob'); } catch (x) {} } } catch (x) { WMSG = x.message; } wdraw(); });
+  document.querySelectorAll('[data-wmove]').forEach(el => el.onchange = async () => {
+    try { await wcall('/' + encodeURIComponent(el.dataset.wmove) + '/folder', { method: 'POST', json: true, body: JSON.stringify({ folder: el.value }) });
+      const it = (WLIST || []).find(x => x.id === el.dataset.wmove); if (it) it.folder = el.value; if (WJ && WJ.id === el.dataset.wmove) WJ.folder = el.value; if (WHIST) wdraw(); }
+    catch (x) { WMSG = x.message; wdraw(); } });
+  document.querySelectorAll('[data-wfolder]').forEach(el => el.onclick = e => { if (e.target.closest('[data-wfren],[data-wfdel]')) return; WFOLDER = el.dataset.wfolder; wdraw(); });
+  document.querySelectorAll('[data-wfren]').forEach(el => el.onclick = async e => { e.stopPropagation(); const f = WFOLDERS.find(x => x.id === el.dataset.wfren); const nm = prompt('Rename folder', f ? f.name : ''); if (nm == null) return; const n = nm.trim(); if (!n) return;
+    try { await wcall('/folders/' + encodeURIComponent(el.dataset.wfren), { method: 'POST', json: true, body: JSON.stringify({ name: n }) }); if (f) f.name = n; } catch (x) { WMSG = x.message; } wdraw(); });
+  document.querySelectorAll('[data-wfdel]').forEach(el => el.onclick = async e => { e.stopPropagation(); if (!confirm('Delete this folder? The videos inside it are kept, they just move back to no folder.')) return;
+    try { await wcall('/folders/' + encodeURIComponent(el.dataset.wfdel), { method: 'DELETE' }); WFOLDERS = WFOLDERS.filter(x => x.id !== el.dataset.wfdel); (WLIST || []).forEach(v => { if (v.folder === el.dataset.wfdel) v.folder = ''; }); if (WFOLDER === el.dataset.wfdel) WFOLDER = ''; } catch (x) { WMSG = x.message; } wdraw(); });
+  const nf = document.getElementById('wfnew'); if (nf) nf.onclick = async () => { const nm = prompt('New folder name'); if (nm == null) return; const n = nm.trim(); if (!n) return;
+    try { const r = await wcall('/folders', { method: 'POST', json: true, body: JSON.stringify({ name: n }) }); WFOLDERS.push(r.folder); WFOLDER = r.folder.id; } catch (x) { WMSG = x.message; } wdraw(); };
   document.querySelectorAll('[data-wcopy]').forEach(el => el.onclick = async () => { const t = WJ && WJ[el.dataset.wcopy] || '';
     try { await navigator.clipboard.writeText(t); el.textContent = 'Copied'; } catch (e) { el.textContent = "Couldn't copy"; } setTimeout(() => { el.textContent = 'Copy'; }, 1500); });
+  const tb = document.getElementById('wtgbtn'); if (tb) tb.onclick = async () => { tb.disabled = true; const o = tb.textContent; tb.textContent = 'Sending…';
+    try { await wcall('/' + encodeURIComponent(tb.dataset.wtgid) + '/telegram', { method: 'POST' }); if (WJ) WJ.tg_sent = true; tb.textContent = 'Sent ✓'; setTimeout(() => { tb.disabled = false; tb.textContent = 'Send to Telegram again'; }, 1800); }
+    catch (x) { tb.textContent = o; tb.disabled = false; WMSG = x.message; const m = document.getElementById('wmsg'); if (m) m.textContent = WMSG; } };
 }
 function bindWatch(){
   bindWbox();
+  if (!WFOLDERS.length) wloadFolders().then(() => { if (WJ && WJ.status === 'done' && !WHIST) wdraw(); });
   const f = document.getElementById('wform'); if (!f) return;
   f.onsubmit = async e => { e.preventDefault(); const u = document.getElementById('wurl').value.trim(); if (!u) return;
     WMSG = ''; wdraw(); const btn = f.querySelector('[type=submit]'); btn.disabled = true;
-    try { const r = await wcall('', { method: 'POST', json: true, body: JSON.stringify({ url: u }) }); document.getElementById('wurl').value = ''; await wopen(r.id); }
+    try { const r = await wcall('', { method: 'POST', json: true, body: JSON.stringify({ url: u, tg: WTG }) }); document.getElementById('wurl').value = ''; await wopen(r.id); }
     catch (x) { WMSG = x.message; wdraw(); } btn.disabled = false; };
+  const tg = document.getElementById('wtg'); if (tg) tg.onchange = () => { WTG = tg.checked; try { localStorage.setItem('ow_wtg', WTG ? '1' : '0'); } catch (e) {} };
   document.getElementById('wup').onclick = () => document.getElementById('wfile').click();
   document.getElementById('wfile').onchange = async ev => { const file = ev.target.files[0]; if (!file) return;
     if (file.size > 1024 * 1024 * 1024) { WMSG = 'That file is over 1 GB.'; wdraw(); return; }
     WMSG = 'Uploading ' + file.name + '…'; wdraw();
-    try { const fd = new FormData(); fd.append('file', file, file.name);
+    try { const fd = new FormData(); fd.append('file', file, file.name); fd.append('tg', WTG ? 'true' : 'false');
       const r = await fetch(WATCH + '/upload', { method: 'POST', headers: { 'Authorization': 'Basic ' + AUTH }, body: fd }); const j = await r.json().catch(() => ({}));
       if (!r.ok || !j.ok) throw new Error(j.error || 'Upload failed (' + r.status + ')'); WMSG = ''; await wopen(j.id); }
     catch (x) { WMSG = x.message; wdraw(); } ev.target.value = ''; };
