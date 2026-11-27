@@ -77,6 +77,20 @@ h2{font-family:var(--serif);font-weight:400;font-size:26px;margin:0 0 4px;line-h
 .pick{width:100%;border:0;border-radius:999px;padding:10px;background:var(--gold);color:#17130b;font-weight:600}
 .pick:disabled{opacity:.6}
 .msg{font-size:14px;margin:8px 0 0;color:var(--ok)}
+.seowrap{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;margin:12px -2px 0;padding:2px 2px 4px;scrollbar-width:none}
+.seowrap::-webkit-scrollbar{display:none}
+.seoslide{scroll-snap-align:center;flex:0 0 100%;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--bg)}
+.seoslide .top{display:flex;align-items:center;gap:6px;padding:7px 10px;background:#171614;border-bottom:1px solid var(--line)}
+.seoslide .top .d{width:8px;height:8px;border-radius:50%;background:#45423c;flex:none}
+.seoslide .url{font-size:11px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-left:4px}
+.seoslide .bd{padding:16px}
+.seoslide .rank{display:inline-block;font-size:11px;color:var(--ok);border:1px solid rgba(127,191,142,.4);border-radius:99px;padding:2px 9px;margin-bottom:10px}
+.seoslide h4{font-family:var(--serif);font-weight:400;font-size:23px;margin:0 0 5px;line-height:1.15}
+.seoslide .s{color:var(--mut);font-size:13px;margin:0 0 12px}
+.seoslide .cta{display:inline-block;background:var(--gold);color:#17130b;font-weight:600;font-size:13px;border-radius:99px;padding:8px 16px}
+.seoslide .kw{display:block;margin-top:12px;font-size:12px;color:var(--gold2)}
+.dots{display:flex;gap:6px;justify-content:center;margin-top:10px}
+.dots i{width:7px;height:7px;border-radius:50%;background:var(--line);transition:background .3s}.dots i.on{background:var(--gold2)}
 @media (max-width:860px){
   main{grid-template-columns:1fr;height:auto}
   .stage{height:calc(100dvh - 53px)}            /* their site fills the screen; scroll past its end and our section is right below */
@@ -113,6 +127,13 @@ h2{font-family:var(--serif);font-weight:400;font-size:26px;margin:0 0 4px;line-h
       <p class="note adj">The voice and the script are yours to change: male or female, calmer or more upbeat, and exactly what it says.</p>
       <audio id="au" preload="none"></audio>
     </div></div>
+    <div class="card locked" id="seoCard"><div class="soon">•••</div><div class="inner">
+      <h2>Get found on Google</h2>
+      <p class="note">Not one website — a new page every month, each built to win a different search. Swipe through three.</p>
+      <div class="seowrap" id="seowrap"></div>
+      <div class="dots" id="seodots"></div>
+      <p class="note adj">The more searches you own, the more you show up ahead of other <span id="seotrade">local businesses</span>.</p>
+    </div></div>
     <div class="card" id="plansCard"><h2>Plans</h2><p class="note" id="pnote">Emma will go over these with you.</p>
       <div class="plans">
         <div class="plan locked" data-p="own"><div class="soon">•••</div><div class="inner"><div class="sk" aria-hidden="true"><i style="width:38%"></i><i style="width:52%;height:28px"></i><i style="width:84%"></i><i style="width:66%"></i><i class="b"></i></div></div></div>
@@ -128,6 +149,9 @@ const N8N = 'https://n8n-production-9be3db1c.up.railway.app/webhook/';
 const q = new URLSearchParams(location.search);
 const slug = (q.get('s') || '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 80);
 const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const slugify = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 44);
+const titleCase = s => String(s).replace(/\b\w/g, c => c.toUpperCase());
 const KEYS = [['renovation', /contract|renovat|remodel|construct|handyman|floor|cabinet|kitchen|bath|carpent|tile|drywall/i], ['cleaning', /clean|maid|janitor|pressure wash/i],
   ['auto', /auto|mechanic|car |tire|collision|body shop|transmission|detail/i], ['medspa', /spa|aesthetic|facial|massage|beauty|nail|salon|hair|barber|lash|brow|skin|wax|dental|chiro/i], ['plumbing', /./]];
 // their own sample calls first, then the trade's sample (same list as the voice server), then the first recordings
@@ -139,7 +163,32 @@ let GKEY = 'plumbing';
 let LEAD = null, KEY = 'plumbing', lastSeq = -1, hello = 1, lastShow = '';
 // Nothing on this page reveals itself: only Emma (on the call) reveals the samples and the plans, and they stay revealed for this business.
 // We never scroll their website for them (that would fake our scroll stats): Emma tells them where to look.
-const CAPS = { receptionist: 'Scroll down: your AI receptionist samples are below.', plans: 'Scroll down to see the plans.' };
+const CAPS = { receptionist: 'Scroll down: your AI receptionist samples are below.', seo: "Scroll down: here's how you show up on Google.", plans: 'Scroll down to see the plans.' };
+const MCAP = { receptionist: 'Your AI receptionist, just below.', seo: 'How you show up on Google, just below.', plans: 'Here are the plans, just below.' };
+function seoExamples(L) {
+  const city = (L && L.city) || 'your area';
+  const areas = (L && L.areas && L.areas.length ? L.areas : [city]).filter(Boolean);
+  const svcs = (L && L.services || []).map(s => String(s).split(':')[0].trim()).filter(Boolean);
+  const cat = String((L && L.category) || '').toLowerCase().replace(/\b(service|services|company|shop|contractor|llc|inc)\b/g, '').replace(/\s+/g, ' ').trim();
+  const trade = cat || (svcs[0] ? svcs[0].toLowerCase() : 'local service');
+  const town2 = areas[1] || city;
+  const s1 = svcs[0] || titleCase(trade);
+  const s2 = svcs[1] || s1;
+  const dom = ((L && L.name) ? String(L.name).toLowerCase().replace(/[^a-z0-9]+/g, '') : 'yourbusiness').slice(0, 20) + '.com';
+  return [
+    { kw: (trade + ' ' + city).toLowerCase(), url: dom + '/' + slugify(trade + '-' + city), h: titleCase(trade) + ' in ' + city, s: 'The page people land on when they search for a ' + trade + ' near them.' },
+    { kw: ('best ' + trade + ' ' + city).toLowerCase(), url: dom + '/' + slugify('best-' + trade + '-' + city), h: 'Best ' + titleCase(trade) + ' in ' + city, s: 'A separate page for people comparing options — the “best” and “near me” searches.' },
+    { kw: (s2 + ' ' + town2).toLowerCase(), url: dom + '/' + slugify(s2 + '-' + town2), h: titleCase(s2) + ' in ' + town2, s: 'Another town, another page — so you show up there too, not just in ' + city + '.' }
+  ];
+}
+function buildSeo() {
+  const wrap = $('#seowrap'); if (!wrap) return;
+  const ex = seoExamples(LEAD);
+  wrap.innerHTML = ex.map((e, i) => `<div class="seoslide"><div class="top"><span class="d"></span><span class="d"></span><span class="d"></span><span class="url">${esc(e.url)}</span></div>
+    <div class="bd"><span class="rank">&#9650; Shows up for “${esc(e.kw)}”</span><h4>${esc(e.h)}</h4><p class="s">${esc(e.s)}</p><span class="cta">Call now</span><span class="kw">Page ${i + 1} of 3 · a new one every month</span></div></div>`).join('');
+  const dots = $('#seodots'); if (dots) dots.innerHTML = ex.map((_, i) => `<i class="${i === 0 ? 'on' : ''}"></i>`).join('');
+  const tr = $('#seotrade'); if (tr && LEAD) { const t = String((LEAD.category || 'local business')).toLowerCase().replace(/\b(service|services|company|shop|contractor|llc|inc)\b/g, '').replace(/\s+/g, ' ').trim(); tr.textContent = (t || 'local business') + 's'; }
+}
 // Plan wording lives here; prices never do. The server only sends a plan's numbers after Emma reveals it.
 const PLAN = { own: { h: 'Website', feats: ['Your site, yours to keep', 'Price if you go ahead today'] },
   hosted: { h: 'Website + hosting <span class="tag">30 days free</span>', feats: ['We host it and keep it running', 'Updates, security, changes by text'] },
@@ -158,15 +207,16 @@ function apply(d) {
   document.body.classList.toggle('meet', !!d.live);
   (d.clips || []).forEach(c => { const el = $('#c-' + c); if (el && !el.classList.contains('open')) { open(el); const sb = el.querySelector('.sub'); if (sb) sb.textContent = CLIP_LEN[c] || ''; } });
   (d.reveal || []).forEach(p => { const el = document.querySelector(`.plan[data-p="${p}"]`); if (el && !el.classList.contains('open') && fill(el, p, (d.prices || {})[p], (d.extra || {})[p])) { open(el); $('#pnote').textContent = 'Tap the one you want, or just tell Emma.'; } });
+  if (d.seo) { const sc = $('#seoCard'); if (sc && !sc.classList.contains('open')) open(sc); }
   Object.entries(d.prices || {}).forEach(([k, v]) => { const el = document.querySelector(`[data-price="${k}"]`); if (el) el.textContent = v; });
   document.querySelectorAll('.clip').forEach(c => c.classList.toggle('oncall', !!d.live && c.id === 'c-' + d.clip));
   if (d.picked) $('#pmsg').textContent = 'Payment link sent to your phone.';
   const show = d.live ? (d.show || '') : '';
   if (show !== lastShow) { lastShow = show;
-    const card = show === 'receptionist' ? $('#rx') : show === 'plans' ? $('#plansCard') : null;
+    const card = show === 'receptionist' ? $('#rx') : show === 'seo' ? $('#seoCard') : show === 'plans' ? $('#plansCard') : null;
     document.querySelectorAll('.card').forEach(c => c.classList.toggle('focus', c === card));
     const cap = $('#cap');
-    if (card) { cap.textContent = mobile() ? (show === 'plans' ? 'Here are the plans, just below.' : 'Your AI receptionist, just below.') : CAPS[show]; cap.classList.remove('hide');
+    if (card) { cap.textContent = mobile() ? (MCAP[show] || '') : (CAPS[show] || ''); cap.classList.remove('hide');
       if (mobile()) card.scrollIntoView({ behavior: 'smooth', block: 'start' });   // scrolls to OUR section below the site, never inside their site
       else card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     } else cap.classList.add('hide'); }
@@ -203,11 +253,12 @@ document.querySelector('.plans').addEventListener('click', async ev => { const b
   try { const r = await fetch(N8N + 'oneweb-present-pick', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ s: slug, plan: b.dataset.pick }) }).then(r => r.json());
     if (r.ok) m.textContent = 'Done. Your secure payment link is in your texts.'; else { m.style.color = '#e08a7a'; m.textContent = r.error === 'not yet' ? 'One sec, Emma is still going over this one.' : (r.error || 'Reply to our text and we\'ll send your payment link.'); b.disabled = false; } }
   catch (e) { m.style.color = '#e08a7a'; m.textContent = 'Reply to our text and we\'ll send your payment link.'; b.disabled = false; } });
+{ const sw = $('#seowrap'); if (sw) sw.addEventListener('scroll', () => { const i = Math.round(sw.scrollLeft / Math.max(1, sw.clientWidth)); document.querySelectorAll('#seodots i').forEach((dt, k) => dt.classList.toggle('on', k === i)); }, { passive: true }); }
 if (!slug) { $('#cap').textContent = 'Open this page from the link we sent you.'; $('#cap').classList.remove('hide'); }
 else { $('#site').src = 'https://' + slug + '.onewebonline.com/';
   fetch(N8N + 'oneweb-preview-data?slug=' + encodeURIComponent(slug)).then(r => r.json()).then(d => {
     LEAD = d && d.found ? d.lead : null; KEY = (KEYS.find(([, re]) => re.test(((LEAD && LEAD.category) || '') + ' ' + ((LEAD && LEAD.name) || ''))) || ['plumbing'])[0]; GKEY = (GKEYS.find(([, re]) => re.test(((LEAD && LEAD.category) || '') + ' ' + ((LEAD && LEAD.name) || ''))) || ['plumbing'])[0];
-    document.title = ((LEAD && LEAD.name) || 'Your website') + ' · One Web'; if (LEAD && LEAD.name) $('#rxTitle').textContent = LEAD.name + (/s$/i.test(LEAD.name) ? "'" : "'s") + ' AI receptionist'; }).catch(() => {});
+    document.title = ((LEAD && LEAD.name) || 'Your website') + ' · One Web'; if (LEAD && LEAD.name) $('#rxTitle').textContent = LEAD.name + (/s$/i.test(LEAD.name) ? "'" : "'s") + ' AI receptionist'; buildSeo(); }).catch(() => { buildSeo(); });
   poll(); }
 </script>
 </body>
