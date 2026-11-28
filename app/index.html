@@ -135,6 +135,7 @@ textarea{min-height:90px;resize:vertical}
 
 <script>
 const API = 'https://n8n-production-9be3db1c.up.railway.app/webhook/oneweb-api';
+const REPLAY = 'https://oneweb-voice-production.up.railway.app/replay';
 const CHAT = 'https://n8n-production-9be3db1c.up.railway.app/webhook/oneweb-test-chat-b3a761a6';
 const DIAL = 'https://n8n-production-9be3db1c.up.railway.app/webhook/oneweb-dialer-stats';
 let DSTATS = null, SITEBK = [], CLIENTS = [];
@@ -656,8 +657,6 @@ function voice(){
       <div class="field"><label>Calling windows (their time)</label><div class="note" style="margin:4px 0 0">8:00–9:30 AM · 12:00–1:30 PM · 5:30–8:00 PM — when businesses rarely answer, so most calls reach voicemail. Best leads (no website, real reviews, high-ticket trades) are called first.</div></div>
       <p class="note">Weekdays only, in each business's own time zone. Each business is called once. Google Voice numbers are skipped.</p>
       <div class="field"><label>If a person picks up</label><select data-d="liveAction"><option value="hangup" ${d.liveAction!=='play'&&d.liveAction!=='ai'?'selected':''}>Hang up (cheapest)</option><option value="play" ${d.liveAction==='play'?'selected':''}>Play the message anyway</option><option value="ai" ${d.liveAction==='ai'?'selected':''}>AI agent talks to them, about 90s max</option></select></div>
-      <h2 style="margin-top:18px">Call recordings</h2>
-      <label class="toggle"><span>Play recording notice<br><span class="note">When someone picks up, Emma says "This call may be recorded" before anything else. Leave on unless your lawyer clears another way to disclose it. Does not apply to voicemails or the receptionist.</span></span><input type="checkbox" data-d="agentRecordingNotice" ${d.agentRecordingNotice===false?'':'checked'}></label>
       <h2 style="margin-top:18px">AI agent</h2>
       <div class="grid g2"><div class="field"><label>Agent name</label><input data-d="agentName" maxlength="30" value="${esc(d.agentName||'')}" placeholder="Emma"></div>
       <div class="field"><label>Voice engine</label><select data-d="agentEngine">${[['rime','Rime'],['cartesia','Cartesia'],...['marin','cedar','coral','sage','shimmer','ash'].map(v => ['openai-'+v,'OpenAI Realtime: '+v[0].toUpperCase()+v.slice(1)+' (test)'])].map(([v,l]) => `<option value="${v}" ${(d.agentEngine||'rime')===v?'selected':''}>${l}</option>`).join('')}</select><p class="note">OpenAI Realtime hears, thinks and talks in one model (no Rime or Deepgram). Sales calls only; the receptionist keeps its own voice. Roughly 2–4× the cost per minute.</p></div></div>
@@ -1032,7 +1031,7 @@ function callsList(){
       <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center">
         <div><b>${c.owner ? esc(c.owner) + ' · ' : ''}${esc(c.name || c.phone)}</b>${c.city ? ' · ' + esc(c.city) : ''}<br><span class="note">${ago(c.at)} · ${esc(c.phone)}${c.secs ? ' · ' + c.secs + 's' : ''}${c.email ? ' · link emailed' : c.ok_to_text ? ' · ok to text' : ''}</span>${c.note ? `<br><span class="note">${esc(c.note)}</span>` : ''}</div>
         <div style="display:flex;gap:8px;align-items:center"><span class="pill ${pill[c.outcome] || ''}">${esc(label[c.outcome] || c.outcome || '')}</span>
-        ${c.hasT ? `<button class="btn btn-line btn-sm" data-tr="${esc(c.call_id)}">${OPEN_T === c.call_id ? 'Hide' : 'Transcript'}</button>` : ''}</div></div>
+        ${c.hasT ? `<button class="btn btn-line btn-sm" data-tr="${esc(c.call_id)}">${OPEN_T === c.call_id ? 'Hide' : 'Transcript'}</button>` : ''}${c.hasT ? `<button class="btn btn-line btn-sm" data-replay="${esc(c.call_id)}">▶ Replay</button>` : ''}</div></div>
       ${t ? `<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px;display:grid;gap:8px">${(t.tr || []).map(m => `<div style="max-width:85%;${m.r === 'emma' ? '' : 'margin-left:auto;text-align:right'}"><span class="note">${m.r === 'emma' ? 'Emma' : 'Lead'}</span><div style="background:${m.r === 'emma' ? 'rgba(201,168,106,.12)' : 'rgba(255,255,255,.05)'};padding:8px 12px;border-radius:12px">${esc(m.t)}</div></div>`).join('') || '<span class="note">Empty transcript.</span>'}</div>` : ''}
     </div>`;
   };
@@ -1082,6 +1081,24 @@ function bind(){
     const id = el.dataset.tr; if (OPEN_T === id) { OPEN_T = null; render(); return; }
     if (!T_CACHE[id]) { el.textContent = 'Loading...'; try { const r = await call(API, { op: 'transcript', call_id: id }); T_CACHE[id] = r.transcript || { tr: [] }; } catch (e) { el.textContent = 'Transcript'; return; } }
     OPEN_T = id; render(); });
+  document.querySelectorAll('[data-replay]').forEach(el => el.onclick = async () => {
+    const id = el.dataset.replay, old = el.textContent;
+    el.disabled = true; el.textContent = 'Building…';
+    try {
+      let t = T_CACHE[id];
+      if (!t) { const r = await call(API, { op: 'transcript', call_id: id }); t = T_CACHE[id] = r.transcript || { tr: [] }; }
+      const lines = (t.tr || []).filter(m => m && m.t);
+      if (!lines.length) { alert('No transcript to replay yet.'); el.disabled = false; el.textContent = old; return; }
+      const resp = await fetch(REPLAY, { method: 'POST', body: JSON.stringify({ transcript: lines, prospect_gender: 'male' }) });
+      if (!resp.ok) throw new Error('replay');
+      const url = URL.createObjectURL(await resp.blob());
+      let a = document.getElementById('replayAudio');
+      if (!a) { a = document.createElement('audio'); a.id = 'replayAudio'; a.controls = true; a.style.cssText = 'position:fixed;bottom:16px;left:16px;z-index:9999;max-width:90vw;box-shadow:0 4px 20px rgba(0,0,0,.4);border-radius:30px'; document.body.appendChild(a); }
+      a.src = url; a.play().catch(() => {});
+      el.textContent = '▶ Playing';
+      setTimeout(() => { el.disabled = false; el.textContent = old; }, 2000);
+    } catch (e) { alert('Could not build the replay. Try again in a moment.'); el.disabled = false; el.textContent = old; }
+  });
   document.querySelectorAll('[data-bk]').forEach(el => el.onclick = () => load('booking_set', { id: el.dataset.bk, status: el.dataset.bs }));
   document.querySelectorAll('[data-bkm]').forEach(el => el.onclick = () => { const i = document.querySelector(`[data-bkt="${CSS.escape(el.dataset.bkm)}"]`); const t = i && i.value ? new Date(i.value).getTime() : 0; if (t > Date.now()) load('booking_set', { id: el.dataset.bkm, at: t }); else if (i) i.focus(); });
   const ct = $('#cleartests'); if (ct) ct.onclick = () => load('clear_tests');
