@@ -147,7 +147,7 @@ const BANK_FORM = 'https://n8n-production-9be3db1c.up.railway.app/form/oneweb-ba
 let EXPD = null, SHOWALLTX = false;
 // Sidebar groups. Keys map to the view functions below.
 const NAVG = [
-  ['', [['overview','Overview'],['insights','Insights']]],
+  ['', [['overview','Overview'],['insights','Insights'],['coaching','Coaching']]],
   ['Sales', [['convos','Conversations'],['bookings','Sales calls'],['results','Call results']]],
   ['Communication', [['voice','AI caller & dialer'],['closer','AI texter (closer)'],['pricing','Pricing & offers'],['test','Test chat']]],
   ['Clients', [['clients','Clients'],['texting','Texting & reminders'],['reviews','Testimonials']]],
@@ -185,7 +185,44 @@ function nav(){
   $('#nav').innerHTML = h; $('#mnav').innerHTML = h;
   document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { TAB = b.dataset.t; render(); });
 }
-function render(){ nav(); const f = { overview, insights, expenses, convos, closer, pricing, reviews, bookings, results, clients, voice, test, watch, texting }[TAB]; $('#main').innerHTML = f(); bind(); }
+function render(){ nav(); const f = { overview, insights, coaching, expenses, convos, closer, pricing, reviews, bookings, results, clients, voice, test, watch, texting }[TAB]; $('#main').innerHTML = f(); bind(); }
+
+/* ---------- coaching: what to fix, from reviewing real calls ---------- */
+function coaching(){
+  const all = (STATE.coaching || []);
+  const open = all.filter(c => c.status === 'open');
+  const heavy = open.filter(c => c.severity === 'heavy');
+  const light = open.filter(c => c.severity === 'light');
+  const handled = all.filter(c => c.status === 'applied' || c.status === 'dismissed').sort((a,b)=>(b.handledAt||0)-(a.handledAt||0)).slice(0, 30);
+  const card = c => `<div class="cc">
+      <div class="cc-h"><span class="pill ${c.severity==='heavy'?'bad':'warn'}">${c.severity==='heavy'?'Heavy':'Light'}</span><b>${esc(c.title)}</b>${c.calls>1?`<span class="cc-n">seen in ~${c.calls} calls</span>`:''}</div>
+      ${c.detail?`<div class="cc-d">${esc(c.detail)}</div>`:''}
+      ${c.tweak?`<div class="cc-t"><span>Suggested fix</span>${esc(c.tweak)}</div>`:''}
+      <div class="cc-a"><button class="btn btn-sm" data-coach="${esc(c.id)}" data-cst="applied">Mark done</button><button class="btn btn-line btn-sm" data-coach="${esc(c.id)}" data-cst="dismissed">Dismiss</button></div>
+    </div>`;
+  const sec = (title, arr, sub) => `<div class="cc-sec"><div class="cc-st">${title} <span>${arr.length}</span></div>${sub?`<div class="cc-sub">${sub}</div>`:''}${arr.length?arr.map(card).join(''):'<div class="cc-empty">Nothing here right now.</div>'}</div>`;
+  const hc = c => `<div class="cc done"><span class="pill ${c.status==='applied'?'ok':''}">${c.status==='applied'?'Done':'Dismissed'}</span><b>${esc(c.title)}</b><button class="btn btn-line btn-sm" data-coach="${esc(c.id)}" data-cst="open" style="margin-left:auto">Reopen</button></div>`;
+  return `<header><h1>Coaching</h1><p class="sub">Things to fix, spotted by reviewing your real calls each day. Heavy issues cost you deals; light ones are quick script tweaks. Nothing here changes Emma on its own — you decide.</p></header>
+    <style>
+    .cc{border:1px solid var(--line,#1f2733);border-radius:12px;padding:14px 16px;margin:10px 0;background:var(--card,#11161d)}
+    .cc-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.cc-h b{font-size:15px}
+    .cc-n{color:#94a3b8;font-size:12px}
+    .cc-d{color:#cbd5e1;margin:8px 0 0;font-size:14px;line-height:1.5}
+    .cc-t{margin-top:10px;padding:10px 12px;border-radius:8px;background:rgba(201,168,106,.08);border:1px solid rgba(201,168,106,.25);font-size:14px;line-height:1.5}
+    .cc-t span{display:block;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:#c9a86a;margin-bottom:4px}
+    .cc-a{display:flex;gap:8px;margin-top:12px}
+    .cc-sec{margin:18px 0}.cc-st{font-weight:600;font-size:13px;letter-spacing:.03em;text-transform:uppercase;color:#94a3b8;display:flex;align-items:center;gap:8px}
+    .cc-st span{background:#1f2733;border-radius:999px;padding:1px 8px;font-size:12px;color:#cbd5e1}
+    .cc-sub{color:#94a3b8;font-size:13px;margin:4px 0 2px}.cc-empty{color:#64748b;font-size:14px;padding:8px 0}
+    .cc.done{display:flex;align-items:center;gap:10px;padding:10px 14px;opacity:.75}.cc.done b{font-size:14px;font-weight:500}
+    .pill.bad{background:rgba(248,113,113,.15);color:#f87171}.pill.warn{background:rgba(251,191,36,.15);color:#fbbf24}.pill.ok{background:rgba(52,211,153,.15);color:#34d399}
+    </style>
+    ${!all.length?'<div class="cc-empty" style="padding:24px 0">No coaching notes yet. The supervisor reviews your calls once a day and anything it spots will show up here.</div>':''}
+    ${heavy.length?sec('Heavy — costing you deals', heavy):''}
+    ${light.length?sec('Light — quick script tweaks', light):''}
+    ${(!heavy.length&&!light.length&&all.length)?'<div class="cc-empty" style="padding:16px 0">All caught up — nothing open right now. 🎉</div>':''}
+    ${handled.length?`<div class="cc-sec"><div class="cc-st">Handled <span>${handled.length}</span></div>${handled.map(hc).join('')}</div>`:''}`;
+}
 
 function dialToday(){
   const d = DSTATS || {}, t = d.today || {}, o = (d.outcomes || {})[t.date] || {};
@@ -1067,6 +1104,7 @@ function bind(){
   const disc = $('#discard'); if (disc) disc.onclick = () => { DIRTY = false; DRAFT = JSON.parse(JSON.stringify(STATE.settings)); render(); };
   document.querySelectorAll('[data-c]').forEach(el => el.onclick = () => { SEL = el.dataset.c; render(); });
   document.querySelectorAll('[data-rv]').forEach(el => el.onclick = () => load('review_set', { id: el.dataset.rv, status: el.dataset.st }));
+  document.querySelectorAll('[data-coach]').forEach(el => el.onclick = async () => { el.disabled = true; try { await call(API, { op: 'coaching_set', id: el.dataset.coach, status: el.dataset.cst }); await load(); } catch(e){ el.disabled = false; if (e.auth) logout(); else alert('Could not update. Try again.'); } });
   document.querySelectorAll('[data-sb]').forEach(el => el.onclick = async () => { if (el.dataset.ss === 'delete' && !confirm('Delete this booking request?')) return; try { SITEBK = (await call(EDIT, { op: 'site_booking_set', slug: el.dataset.sb, at: Number(el.dataset.sat), status: el.dataset.ss })).bookings || []; render(); } catch (e) { alert('Could not update. Try again.'); } });
   document.querySelectorAll('[data-buy]').forEach(el => el.onclick = async () => {
     if (!confirm(`Buy ${el.dataset.num} for ${el.dataset.nm}? Telnyx charges about $1/month for the number. Their receptionist turns on right after.`)) return;
