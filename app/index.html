@@ -58,7 +58,7 @@ textarea{min-height:90px;resize:vertical}
 .citem{padding:12px;border-radius:10px;cursor:pointer;border:1px solid transparent}.citem:hover{background:var(--bg3)}.citem.on{border-color:var(--gold)}
 .citem b{display:block}.citem small{color:var(--mut)}
 .thread{display:flex;flex-direction:column;gap:8px;max-height:60vh;overflow:auto;padding:4px}
-.msg{max-width:78%;padding:10px 14px;border-radius:16px;white-space:pre-wrap}
+.msg{max-width:78%;padding:10px 14px;border-radius:16px;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word}
 .msg.user{align-self:flex-start;background:var(--bg3);border-bottom-left-radius:4px}
 .msg.assistant{align-self:flex-end;background:#2a2417;color:#f3e7cf;border-bottom-right-radius:4px}
 .msg small{display:block;opacity:.55;font-size:10px;margin-top:4px}
@@ -79,6 +79,15 @@ textarea{min-height:90px;resize:vertical}
  .g2,.g3,.g4,.convos{grid-template-columns:1fr}.g4.kpis{grid-template-columns:1fr 1fr}
  .frow{grid-template-columns:120px 1fr 40px}
  main{padding:20px 16px}h1{font-size:34px}
+ /* --- iOS fit: nothing escapes the screen --- */
+ #main{overflow-x:hidden}
+ .grid>*,.convos>*,.wgrid>*{min-width:0}
+ #main svg,#main img{max-width:100%;height:auto}
+ #main input,#main select,#main textarea{max-width:100%}
+ .wform input{min-width:0}
+ .tot{grid-template-columns:repeat(auto-fill,minmax(100px,1fr))}
+ .msg{max-width:88%}
+ [style*="repeat(7,1fr)"]{grid-template-columns:repeat(4,1fr)!important}
 }
 .wtop{display:flex;gap:16px;align-items:center}.wtop img{width:160px;aspect-ratio:16/9;object-fit:cover;border-radius:10px;background:var(--bg3);flex:none}
 .wtop .meta{min-width:0}.wtop .meta b{display:block;font-size:16px;color:var(--txt);font-weight:600;overflow-wrap:anywhere}.wtop .meta small{color:var(--mut)}
